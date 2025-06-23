@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Locked</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #e74c3c; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .alert-box { background: #ffebee; border-left: 4px solid #e74c3c; padding: 20px; margin: 20px 0; border-radius: 0 5px 5px 0; }
+        .button { display: inline-block; background: #e74c3c; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔒 Account Locked</h1>
+        <p>Security protection activated</p>
+    </div>
+    
+    <div class="content">
+        <h2>Hello {{firstName}} {{lastName}},</h2>
+        
+        <div class="alert-box">
+            <strong>⚠️ Your account has been temporarily locked</strong> due to multiple failed login attempts.
+        </div>
+        
+        <p>This is a security measure to protect your {{appName}} account from unauthorized access attempts.</p>
+        
+        <h3>What happened?</h3>
+        <p>We detected several unsuccessful login attempts on your account, which triggered our security system to temporarily lock your account.</p>
+        
+        <h3>What should you do?</h3>
+        <ol>
+            <li><strong>Wait 30 minutes</strong> - Your account will be automatically unlocked</li>
+            <li><strong>Reset your password</strong> if you think it may have been compromised</li>
+            <li><strong>Check for suspicious activity</strong> on your account</li>
+            <li><strong>Enable two-factor authentication</strong> for added security</li>
+        </ol>
+        
+        <a href="{{appUrl}}/auth/forgot-password" class="button">Reset Password Now</a>
+        
+        <p>If you believe this lockout was triggered by your own login attempts (perhaps due to a forgotten password), you can safely wait for the automatic unlock or reset your password using the link above.</p>
+        
+        <p>If you suspect unauthorized access attempts, please contact our support team immediately.</p>
+        
+        <p>Best regards,<br>The {{appName}} Security Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>{{appName}} | <a href="{{appUrl}}">{{appUrl}}</a></p>
+        <p>This is an automated security alert.</p>
+    </div>
+</body>
+</html>

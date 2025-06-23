@@ -1,0 +1,15 @@
+# =============================================
+# GRAFANA - DASHBOARD PROVISIONING
+# Automatic dashboard loading configuration
+# =============================================
+
+apiVersion: 1
+
+providers:
+  - name: 'DoramaFlix Dashboards'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/files

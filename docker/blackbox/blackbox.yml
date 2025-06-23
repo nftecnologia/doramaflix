@@ -1,0 +1,217 @@
+# =============================================
+# DORAMAFLIX - BLACKBOX EXPORTER CONFIGURATION
+# External monitoring and health checks
+# =============================================
+
+modules:
+  # HTTP 2xx responses
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: []  # Defaults to 2xx
+      method: GET
+      headers:
+        Host: doramaflix.com
+        Accept-Language: en-US
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      no_follow_redirects: false
+      fail_if_ssl: false
+      fail_if_not_ssl: false
+      tls_config:
+        insecure_skip_verify: false
+      preferred_ip_protocol: "ip4"
+
+  # HTTP POST requests
+  http_post_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      method: POST
+      headers:
+        Content-Type: application/json
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      body: '{"health": "check"}'
+
+  # HTTPS with SSL verification
+  https_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      method: GET
+      headers:
+        Host: doramaflix.com
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      tls_config:
+        insecure_skip_verify: false
+        ca_file: "/etc/ssl/certs/ca-certificates.crt"
+      preferred_ip_protocol: "ip4"
+      fail_if_not_ssl: true
+
+  # TCP connection check
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+
+  # ICMP ping
+  icmp:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: "ip4"
+      source_ip_address: "0.0.0.0"
+
+  # DNS resolution check
+  dns_doramaflix:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: "doramaflix.com"
+      query_type: "A"
+      valid_rcodes:
+        - NOERROR
+      validate_answer_rrs:
+        fail_if_matches_regexp:
+          - ".*"
+        fail_if_not_matches_regexp:
+          - ".*"
+      preferred_ip_protocol: "ip4"
+
+  # API health check
+  api_health:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      method: GET
+      headers:
+        Accept: application/json
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      valid_status_codes: [200]
+      fail_if_body_not_matches_regexp:
+        - '"status":\s*"healthy"'
+      preferred_ip_protocol: "ip4"
+
+  # Database connection check (through API)
+  database_health:
+    prober: http
+    timeout: 15s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      method: GET
+      headers:
+        Accept: application/json
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      valid_status_codes: [200]
+      fail_if_body_not_matches_regexp:
+        - '"database":\s*"connected"'
+      preferred_ip_protocol: "ip4"
+
+  # Video streaming check
+  video_stream:
+    prober: http
+    timeout: 30s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      method: HEAD
+      headers:
+        Range: "bytes=0-1023"
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      valid_status_codes: [200, 206]
+      preferred_ip_protocol: "ip4"
+
+  # Payment gateway check
+  payment_gateway:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      method: GET
+      headers:
+        Accept: application/json
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      valid_status_codes: [200, 401]  # 401 is expected without auth
+      preferred_ip_protocol: "ip4"
+
+  # CDN check
+  cdn_check:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      method: GET
+      headers:
+        Accept: "*/*"
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      valid_status_codes: [200, 304]
+      preferred_ip_protocol: "ip4"
+
+  # SSL certificate expiry check
+  ssl_expiry:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      fail_if_not_ssl: true
+      tls_config:
+        insecure_skip_verify: false
+      preferred_ip_protocol: "ip4"
+
+  # GraphQL endpoint check
+  graphql_check:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      method: POST
+      headers:
+        Content-Type: application/json
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      body: '{"query": "{ __schema { types { name } } }"}'
+      valid_status_codes: [200]
+      fail_if_body_not_matches_regexp:
+        - '"data":\s*{.*}'
+
+  # WebSocket check
+  websocket_check:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1"]
+      method: GET
+      headers:
+        Connection: "Upgrade"
+        Upgrade: "websocket"
+        Sec-WebSocket-Key: "x3JJHMbDL1EzLkh9GBhXDw=="
+        Sec-WebSocket-Version: "13"
+        User-Agent: "DoramaFlix-Monitor/1.0"
+      valid_status_codes: [101]
+
+  # Email service check (SMTP)
+  smtp_check:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - expect: "^220.*SMTP.*"
+
+  # Redis check
+  redis_check:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - send: "PING\r\n"
+        - expect: "^\\+PONG"
+
+  # PostgreSQL check
+  postgres_check:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"

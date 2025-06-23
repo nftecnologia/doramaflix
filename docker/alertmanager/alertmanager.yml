@@ -1,0 +1,214 @@
+# =============================================
+# DORAMAFLIX - ALERTMANAGER CONFIGURATION
+# Alert routing and notification configuration
+# =============================================
+
+global:
+  smtp_smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+  smtp_from: 'alerts@doramaflix.com'
+  smtp_auth_username: '${SMTP_USER}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# Template files for notifications
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route configuration
+route:
+  group_by: ['alertname', 'severity', 'team']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'default-receiver'
+  
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 1h
+      routes:
+        # Database critical issues
+        - match:
+            team: database
+          receiver: 'database-critical'
+        # Backend critical issues
+        - match:
+            team: backend
+          receiver: 'backend-critical'
+        # Infrastructure critical issues
+        - match:
+            team: infrastructure
+          receiver: 'infrastructure-critical'
+    
+    # Warning alerts - standard notification
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 2m
+      repeat_interval: 8h
+    
+    # Business metrics alerts
+    - match:
+        team: product
+      receiver: 'business-alerts'
+      group_wait: 5m
+      repeat_interval: 12h
+    
+    # Payment related alerts
+    - match:
+        team: payments
+      receiver: 'payment-alerts'
+      group_wait: 30s
+      repeat_interval: 30m
+
+# Receivers configuration
+receivers:
+  # Default receiver
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'devops@doramaflix.com'
+        subject: 'DoramaFlix Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # Critical alerts - multiple channels
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'devops@doramaflix.com,management@doramaflix.com'
+        subject: '🚨 CRITICAL: DoramaFlix Alert'
+        body: |
+          🚨 CRITICAL ALERT 🚨
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Team: {{ .Labels.team }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          
+          Please investigate immediately!
+          {{ end }}
+    slack_configs:
+      - channel: '#critical-alerts'
+        color: 'danger'
+        title: '🚨 Critical Alert - DoramaFlix'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Team:* {{ .Labels.team }}
+          {{ end }}
+
+  # Database critical alerts
+  - name: 'database-critical'
+    email_configs:
+      - to: 'dba@doramaflix.com,devops@doramaflix.com'
+        subject: '🚨 DATABASE CRITICAL: {{ .GroupLabels.alertname }}'
+        body: |
+          🚨 DATABASE CRITICAL ALERT 🚨
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+    slack_configs:
+      - channel: '#database-alerts'
+        color: 'danger'
+        title: '🚨 Database Critical Alert'
+
+  # Backend critical alerts
+  - name: 'backend-critical'
+    email_configs:
+      - to: 'backend@doramaflix.com,devops@doramaflix.com'
+        subject: '🚨 BACKEND CRITICAL: {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#backend-alerts'
+        color: 'danger'
+        title: '🚨 Backend Critical Alert'
+
+  # Infrastructure critical alerts
+  - name: 'infrastructure-critical'
+    email_configs:
+      - to: 'devops@doramaflix.com,sre@doramaflix.com'
+        subject: '🚨 INFRASTRUCTURE CRITICAL: {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#infrastructure-alerts'
+        color: 'danger'
+        title: '🚨 Infrastructure Critical Alert'
+
+  # Warning alerts
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'devops@doramaflix.com'
+        subject: '⚠️ Warning: {{ .GroupLabels.alertname }}'
+        body: |
+          ⚠️ WARNING ALERT ⚠️
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Team: {{ .Labels.team }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+    slack_configs:
+      - channel: '#monitoring-alerts'
+        color: 'warning'
+        title: '⚠️ Warning Alert - DoramaFlix'
+
+  # Business alerts
+  - name: 'business-alerts'
+    email_configs:
+      - to: 'product@doramaflix.com,management@doramaflix.com'
+        subject: '📊 Business Metric Alert: {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#business-metrics'
+        color: 'warning'
+        title: '📊 Business Metric Alert'
+
+  # Payment alerts
+  - name: 'payment-alerts'
+    email_configs:
+      - to: 'payments@doramaflix.com,devops@doramaflix.com,management@doramaflix.com'
+        subject: '💳 PAYMENT ALERT: {{ .GroupLabels.alertname }}'
+        body: |
+          💳 PAYMENT SYSTEM ALERT 💳
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          
+          IMMEDIATE ATTENTION REQUIRED!
+          {{ end }}
+    slack_configs:
+      - channel: '#payment-alerts'
+        color: 'danger'
+        title: '💳 Payment System Alert'
+
+# Inhibition rules
+inhibit_rules:
+  # Inhibit warning alerts when critical alerts for same service are firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+
+  # Inhibit individual service alerts when the entire service is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '(HighErrorRate|HighResponseTime|HighMemoryUsage)'
+    equal: ['instance']

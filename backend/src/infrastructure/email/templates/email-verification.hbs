@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #27ae60; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { display: inline-block; background: #27ae60; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✉️ Verify Your Email</h1>
+        <p>One more step to complete your registration</p>
+    </div>
+    
+    <div class="content">
+        <h2>Hello {{firstName}} {{lastName}},</h2>
+        
+        <p>Thank you for registering with {{appName}}! To complete your registration and activate your account, please verify your email address.</p>
+        
+        <a href="{{verificationUrl}}" class="button">Verify Email Address</a>
+        
+        <p>If you're having trouble clicking the button, copy and paste this URL into your browser:</p>
+        <p style="word-break: break-all; background: #f0f0f0; padding: 10px; border-radius: 5px;">{{verificationUrl}}</p>
+        
+        <p>If you didn't create an account with {{appName}}, you can safely ignore this email.</p>
+        
+        <p>Best regards,<br>The {{appName}} Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>{{appName}} | <a href="{{appUrl}}">{{appUrl}}</a></p>
+    </div>
+</body>
+</html>

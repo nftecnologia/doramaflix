@@ -1,0 +1,940 @@
+// =============================================
+// DORAMAFLIX - PRISMA DATABASE SCHEMA
+// =============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================
+// ENUMS
+// =============================================
+
+enum UserRole {
+  admin
+  premium
+  basic
+  manager
+  student
+}
+
+enum SubscriptionTier {
+  free
+  premium
+  ultra
+}
+
+enum OAuthProvider {
+  google
+  apple
+  facebook
+  github
+}
+
+enum TwoFactorType {
+  sms
+  email
+  totp
+  backup_codes
+}
+
+enum DeviceType {
+  web
+  mobile
+  tablet
+  tv
+  desktop
+}
+
+enum SessionStatus {
+  active
+  expired
+  revoked
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+  pending_verification
+}
+
+enum ContentType {
+  series
+  movie
+  documentary
+  special
+  ova
+}
+
+enum DramaOrigin {
+  korean
+  japanese
+  chinese
+  thai
+  taiwanese
+  filipino
+  other
+}
+
+enum SubtitleLanguage {
+  portuguese
+  english
+  spanish
+  korean
+  japanese
+  chinese
+  thai
+}
+
+enum ContentStatus {
+  draft
+  published
+  archived
+  coming_soon
+}
+
+enum SubscriptionStatus {
+  active
+  cancelled
+  expired
+  trial
+  suspended
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+  cancelled
+}
+
+enum PaymentMethod {
+  stripe
+  mercadopago
+  paypal
+  bank_transfer
+}
+
+enum NotificationType {
+  email
+  push
+  sms
+  in_app
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+  read
+}
+
+enum LogLevel {
+  debug
+  info
+  warn
+  error
+  fatal
+}
+
+enum FileType {
+  video
+  image
+  audio
+  document
+  subtitle
+}
+
+enum VideoQuality {
+  SD_480p
+  HD_720p
+  FHD_1080p
+  UHD_4K
+}
+
+enum WatchStatus {
+  not_started
+  watching
+  completed
+  dropped
+  on_hold
+}
+
+enum UploadStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+// =============================================
+// USER MODELS
+// =============================================
+
+model User {
+  id                String     @id @default(uuid()) @db.Uuid
+  email             String     @unique @db.VarChar(255)
+  passwordHash      String?    @map("password_hash") @db.VarChar(255)
+  firstName         String     @map("first_name") @db.VarChar(100)
+  lastName          String     @map("last_name") @db.VarChar(100)
+  avatarUrl         String?    @map("avatar_url")
+  role              UserRole   @default(student)
+  status            UserStatus @default(pending_verification)
+  emailVerified     Boolean    @default(false) @map("email_verified")
+  emailVerifiedAt   DateTime?  @map("email_verified_at") @db.Timestamptz
+  lastLoginAt       DateTime?  @map("last_login_at") @db.Timestamptz
+  passwordResetToken String?   @map("password_reset_token") @db.VarChar(255)
+  passwordResetExpires DateTime? @map("password_reset_expires") @db.Timestamptz
+  emailVerificationToken String? @map("email_verification_token") @db.VarChar(255)
+  twoFactorEnabled  Boolean    @default(false) @map("two_factor_enabled")
+  twoFactorSecret   String?    @map("two_factor_secret") @db.VarChar(255)
+  backupCodes       String[]   @default([]) @map("backup_codes")
+  subscriptionTier  String @default("free") @map("subscription_tier") @db.VarChar(20)
+  maxProfiles       Int        @default(1) @map("max_profiles")
+  isMainProfile     Boolean    @default(true) @map("is_main_profile")
+  parentUserId      String?    @map("parent_user_id") @db.Uuid
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Self-referencing for profiles
+  parentUser        User?      @relation("UserProfiles", fields: [parentUserId], references: [id])
+  childProfiles     User[]     @relation("UserProfiles")
+
+  // Relationships
+  refreshTokens     RefreshToken[]
+  subscriptions     Subscription[]
+  payments          Payment[]
+  progress          UserProgress[]
+  watchHistory      WatchHistory[]
+  favorites         UserFavorite[]
+  reviews           UserReview[]
+  episodeReviews    EpisodeReview[]
+  watchStatus       UserWatchStatus[]
+  engagement        UserEngagement[]
+  searchQueries     SearchQuery[]
+  notifications     Notification[]
+  systemLogs        SystemLog[]
+  auditLogs         UserAudit[]
+  fileUploads       FileUpload[]
+  createdCourses    Course[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  revoked   Boolean  @default(false)
+  deviceId  String?  @map("device_id") @db.Uuid
+  ipAddress String?  @map("ip_address") @db.Inet
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device UserDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@map("refresh_tokens")
+}
+
+// OAuth Integration
+model OAuthAccount {
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  provider          OAuthProvider
+  providerAccountId String        @map("provider_account_id") @db.VarChar(255)
+  accessToken       String?       @map("access_token")
+  refreshToken      String?       @map("refresh_token")
+  expiresAt         DateTime?     @map("expires_at") @db.Timestamptz
+  tokenType         String?       @map("token_type") @db.VarChar(50)
+  scope             String?
+  idToken           String?       @map("id_token")
+  profileData       Json          @default("{}") @map("profile_data")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("oauth_accounts")
+}
+
+// Session Management
+model UserSession {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  sessionId String        @unique @map("session_id") @db.VarChar(255)
+  status    SessionStatus @default(active)
+  deviceId  String?       @map("device_id") @db.Uuid
+  ipAddress String        @map("ip_address") @db.Inet
+  userAgent String?       @map("user_agent")
+  location  String?       @db.VarChar(255)
+  lastActivity DateTime   @default(now()) @map("last_activity") @db.Timestamptz
+  expiresAt DateTime      @map("expires_at") @db.Timestamptz
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device UserDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@map("user_sessions")
+}
+
+// Device Management
+model UserDevice {
+  id            String     @id @default(uuid()) @db.Uuid
+  userId        String     @map("user_id") @db.Uuid
+  deviceType    DeviceType
+  deviceName    String     @map("device_name") @db.VarChar(255)
+  deviceId      String     @map("device_id") @db.VarChar(255)
+  userAgent     String?    @map("user_agent")
+  ipAddress     String     @map("ip_address") @db.Inet
+  location      String?    @db.VarChar(255)
+  isTrusted     Boolean    @default(false) @map("is_trusted")
+  isActive      Boolean    @default(true) @map("is_active")
+  lastSeenAt    DateTime   @default(now()) @map("last_seen_at") @db.Timestamptz
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions      UserSession[]
+  refreshTokens RefreshToken[]
+
+  @@unique([userId, deviceId])
+  @@map("user_devices")
+}
+
+// Two-Factor Authentication
+model TwoFactorToken {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  type      TwoFactorType
+  token     String        @db.VarChar(10)
+  expiresAt DateTime      @map("expires_at") @db.Timestamptz
+  used      Boolean       @default(false)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("two_factor_tokens")
+}
+
+// Permission System
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(100)
+  description String?
+  resource    String   @db.VarChar(100)
+  action      String   @db.VarChar(50)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  userPermissions UserPermission[]
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(50)
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model UserPermission {
+  userId       String @map("user_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+  grantedAt    DateTime @default(now()) @map("granted_at") @db.Timestamptz
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// =============================================
+// CONTENT MODELS
+// =============================================
+
+model Category {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(100)
+  slug        String    @unique @db.VarChar(100)
+  description String?
+  iconUrl     String?   @map("icon_url")
+  color       String    @default("#000000") @db.VarChar(7)
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  courses CourseCategory[]
+
+  @@map("categories")
+}
+
+model Course {
+  id               String        @id @default(uuid()) @db.Uuid
+  title            String        @db.VarChar(255)
+  originalTitle    String?       @map("original_title") @db.VarChar(255)
+  slug             String        @unique @db.VarChar(255)
+  description      String?
+  shortDescription String?       @map("short_description")
+  thumbnailUrl     String?       @map("thumbnail_url")
+  bannerUrl        String?       @map("banner_url")
+  trailerUrl       String?       @map("trailer_url")
+  contentType      ContentType   @map("content_type")
+  dramaOrigin      DramaOrigin?  @map("drama_origin")
+  originalLanguage String?       @map("original_language") @db.VarChar(50)
+  productionYear   Int?          @map("production_year")
+  status           ContentStatus @default(draft)
+  isPremium        Boolean       @default(true) @map("is_premium")
+  price            Decimal       @default(0.00) @db.Decimal(10, 2)
+  durationMinutes  Int           @default(0) @map("duration_minutes")
+  totalEpisodes    Int?          @map("total_episodes")
+  ageRating        String?       @map("age_rating") @db.VarChar(10)
+  rating           Decimal       @default(0.00) @db.Decimal(3, 2)
+  ratingCount      Int           @default(0) @map("rating_count")
+  totalViews       Int           @default(0) @map("total_views")
+  popularity       Int           @default(0)
+  sortOrder        Int           @default(0) @map("sort_order")
+  releaseDate      DateTime?     @map("release_date") @db.Date
+  endDate          DateTime?     @map("end_date") @db.Date
+  createdBy        String?       @map("created_by") @db.Uuid
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relationships
+  creator     User?             @relation(fields: [createdBy], references: [id])
+  categories  CourseCategory[]
+  tags        CourseTag[]
+  seasons     Season[]
+  episodes    Episode[]
+  favorites   UserFavorite[]
+  reviews     UserReview[]
+  cast        CastMember[]
+  crew        CrewMember[]
+  watchStatus UserWatchStatus[]
+  analytics   ContentAnalytics[]
+  trending    TrendingContent[]
+
+  @@map("courses")
+}
+
+model CourseCategory {
+  courseId   String @map("course_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, categoryId])
+  @@map("course_categories")
+}
+
+model Season {
+  id           String    @id @default(uuid()) @db.Uuid
+  courseId     String    @map("course_id") @db.Uuid
+  title        String    @db.VarChar(255)
+  description  String?
+  seasonNumber Int       @map("season_number")
+  thumbnailUrl String?   @map("thumbnail_url")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  episodes Episode[]
+
+  @@unique([courseId, seasonNumber])
+  @@map("seasons")
+}
+
+model Episode {
+  id            String   @id @default(uuid()) @db.Uuid
+  courseId      String   @map("course_id") @db.Uuid
+  seasonId      String?  @map("season_id") @db.Uuid
+  title         String   @db.VarChar(255)
+  originalTitle String?  @map("original_title") @db.VarChar(255)
+  description   String?
+  episodeNumber Int      @map("episode_number")
+  videoUrl      String?  @map("video_url")
+  videoDuration Int?     @map("video_duration")
+  videoSize     BigInt?  @map("video_size")
+  thumbnailUrl  String?  @map("thumbnail_url")
+  isFree        Boolean  @default(false) @map("is_free")
+  isActive      Boolean  @default(true) @map("is_active")
+  viewCount     Int      @default(0) @map("view_count")
+  rating        Decimal  @default(0.00) @db.Decimal(3, 2)
+  ratingCount   Int      @default(0) @map("rating_count")
+  airDate       DateTime? @map("air_date") @db.Date
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  course       Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  season       Season?         @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  progress     UserProgress[]
+  watchHistory WatchHistory[]
+  subtitles    Subtitle[]
+  videoQualities EpisodeVideoQuality[]
+  reviews      EpisodeReview[]
+
+  @@map("episodes")
+}
+
+model Tag {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique @db.VarChar(50)
+  slug      String   @unique @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  courses CourseTag[]
+
+  @@map("tags")
+}
+
+model CourseTag {
+  courseId String @map("course_id") @db.Uuid
+  tagId    String @map("tag_id") @db.Uuid
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, tagId])
+  @@map("course_tags")
+}
+
+// =============================================
+// CAST & CREW MODELS
+// =============================================
+
+model Person {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(255)
+  originalName String? @map("original_name") @db.VarChar(255)
+  profileUrl  String?  @map("profile_url")
+  biography   String?
+  birthDate   DateTime? @map("birth_date") @db.Date
+  nationality String?  @db.VarChar(100)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  castRoles CastMember[]
+  crewRoles CrewMember[]
+
+  @@map("persons")
+}
+
+model CastMember {
+  id       String  @id @default(uuid()) @db.Uuid
+  courseId String  @map("course_id") @db.Uuid
+  personId String  @map("person_id") @db.Uuid
+  role     String  @db.VarChar(255)
+  isLead   Boolean @default(false) @map("is_lead")
+  order    Int     @default(0)
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, personId, role])
+  @@map("cast_members")
+}
+
+model CrewMember {
+  id       String @id @default(uuid()) @db.Uuid
+  courseId String @map("course_id") @db.Uuid
+  personId String @map("person_id") @db.Uuid
+  role     String @db.VarChar(100)
+  department String @db.VarChar(100)
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, personId, role])
+  @@map("crew_members")
+}
+
+// =============================================
+// SUBTITLE & VIDEO QUALITY MODELS
+// =============================================
+
+model Subtitle {
+  id        String           @id @default(uuid()) @db.Uuid
+  episodeId String           @map("episode_id") @db.Uuid
+  language  SubtitleLanguage
+  fileUrl   String           @map("file_url")
+  fileName  String           @map("file_name") @db.VarChar(255)
+  isDefault Boolean          @default(false) @map("is_default")
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([episodeId, language])
+  @@map("subtitles")
+}
+
+model EpisodeVideoQuality {
+  id        String       @id @default(uuid()) @db.Uuid
+  episodeId String       @map("episode_id") @db.Uuid
+  quality   VideoQuality @map("quality_type")
+  videoUrl  String       @map("video_url")
+  fileSize  BigInt       @map("file_size")
+  bitrate   Int?
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([episodeId, quality])
+  @@map("video_qualities")
+}
+
+// =============================================
+// SUBSCRIPTION & PAYMENT MODELS
+// =============================================
+
+model SubscriptionPlan {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(100)
+  description     String?
+  price           Decimal  @db.Decimal(10, 2)
+  currency        String   @default("USD") @db.VarChar(3)
+  billingInterval String   @map("billing_interval") @db.VarChar(20)
+  trialDays       Int      @default(0) @map("trial_days")
+  features        Json     @default("[]")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  subscriptions Subscription[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id                     String             @id @default(uuid()) @db.Uuid
+  userId                 String             @map("user_id") @db.Uuid
+  planId                 String             @map("plan_id") @db.Uuid
+  status                 SubscriptionStatus @default(trial)
+  startsAt               DateTime           @map("starts_at") @db.Timestamptz
+  endsAt                 DateTime           @map("ends_at") @db.Timestamptz
+  trialEndsAt            DateTime?          @map("trial_ends_at") @db.Timestamptz
+  cancelledAt            DateTime?          @map("cancelled_at") @db.Timestamptz
+  externalSubscriptionId String?            @map("external_subscription_id") @db.VarChar(255)
+  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+  payments Payment[]
+
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                 String        @id @default(uuid()) @db.Uuid
+  userId             String        @map("user_id") @db.Uuid
+  subscriptionId     String?       @map("subscription_id") @db.Uuid
+  amount             Decimal       @db.Decimal(10, 2)
+  currency           String        @default("USD") @db.VarChar(3)
+  status             PaymentStatus @default(pending)
+  paymentMethod      PaymentMethod @map("payment_method")
+  externalPaymentId  String?       @map("external_payment_id") @db.VarChar(255)
+  externalCustomerId String?       @map("external_customer_id") @db.VarChar(255)
+  paymentDate        DateTime?     @map("payment_date") @db.Timestamptz
+  failureReason      String?       @map("failure_reason")
+  metadata           Json          @default("{}")
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  user         User          @relation(fields: [userId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@map("payments")
+}
+
+// =============================================
+// USER ACTIVITY MODELS
+// =============================================
+
+model UserProgress {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  episodeId       String    @map("episode_id") @db.Uuid
+  progressSeconds Int       @default(0) @map("progress_seconds")
+  completed       Boolean   @default(false)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz
+  lastWatchedAt   DateTime  @default(now()) @map("last_watched_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, episodeId])
+  @@map("user_progress")
+}
+
+model WatchHistory {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  episodeId     String   @map("episode_id") @db.Uuid
+  watchedAt     DateTime @default(now()) @map("watched_at") @db.Timestamptz
+  watchDuration Int      @default(0) @map("watch_duration")
+  deviceInfo    Json     @default("{}") @map("device_info")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@map("watch_history")
+}
+
+model UserFavorite {
+  userId    String   @map("user_id") @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([userId, courseId])
+  @@map("user_favorites")
+}
+
+model UserReview {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  courseId   String    @map("course_id") @db.Uuid
+  rating     Int       @db.SmallInt
+  reviewText String?   @map("review_text")
+  isApproved Boolean   @default(false) @map("is_approved")
+  helpfulVotes Int     @default(0) @map("helpful_votes")
+  totalVotes Int       @default(0) @map("total_votes")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("user_reviews")
+}
+
+model EpisodeReview {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  episodeId  String    @map("episode_id") @db.Uuid
+  rating     Int       @db.SmallInt
+  reviewText String?   @map("review_text")
+  isApproved Boolean   @default(false) @map("is_approved")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, episodeId])
+  @@map("episode_reviews")
+}
+
+model UserWatchStatus {
+  id       String      @id @default(uuid()) @db.Uuid
+  userId   String      @map("user_id") @db.Uuid
+  courseId String      @map("course_id") @db.Uuid
+  status   WatchStatus @default(not_started)
+  score    Int?        @db.SmallInt
+  notes    String?
+  startedAt DateTime?  @map("started_at") @db.Timestamptz
+  completedAt DateTime? @map("completed_at") @db.Timestamptz
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("user_watch_status")
+}
+
+// =============================================
+// NOTIFICATION & MESSAGING MODELS
+// =============================================
+
+model Notification {
+  id       String             @id @default(uuid()) @db.Uuid
+  userId   String             @map("user_id") @db.Uuid
+  type     NotificationType
+  title    String             @db.VarChar(255)
+  message  String
+  status   NotificationStatus @default(pending)
+  sentAt   DateTime?          @map("sent_at") @db.Timestamptz
+  readAt   DateTime?          @map("read_at") @db.Timestamptz
+  metadata Json               @default("{}")
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// =============================================
+// SYSTEM & AUDIT MODELS
+// =============================================
+
+model SystemLog {
+  id           String    @id @default(uuid()) @db.Uuid
+  level        LogLevel
+  message      String
+  userId       String?   @map("user_id") @db.Uuid
+  ipAddress    String?   @map("ip_address") @db.Inet
+  userAgent    String?   @map("user_agent")
+  endpoint     String?   @db.VarChar(255)
+  method       String?   @db.VarChar(10)
+  statusCode   Int?      @map("status_code")
+  responseTime Int?      @map("response_time")
+  metadata     Json      @default("{}")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("system_logs")
+}
+
+model UserAudit {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  action       String    @db.VarChar(100)
+  resourceType String?   @map("resource_type") @db.VarChar(50)
+  resourceId   String?   @map("resource_id") @db.Uuid
+  oldValues    Json?     @map("old_values")
+  newValues    Json?     @map("new_values")
+  ipAddress    String?   @map("ip_address") @db.Inet
+  userAgent    String?   @map("user_agent")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_audit")
+}
+
+// =============================================
+// FILE UPLOAD MODELS
+// =============================================
+
+model FileUpload {
+  id               String       @id @default(uuid()) @db.Uuid
+  userId           String       @map("user_id") @db.Uuid
+  originalFilename String       @map("original_filename") @db.VarChar(255)
+  storedFilename   String       @map("stored_filename") @db.VarChar(255)
+  filePath         String       @map("file_path")
+  fileSize         BigInt       @map("file_size")
+  fileType         FileType     @map("file_type")
+  mimeType         String       @map("mime_type") @db.VarChar(100)
+  status           UploadStatus @default(pending)
+  uploadProgress   Int          @default(0) @map("upload_progress")
+  metadata         Json         @default("{}")
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("file_uploads")
+}
+
+// =============================================
+// ANALYTICS & PERFORMANCE MODELS
+// =============================================
+
+model ContentAnalytics {
+  id              String   @id @default(uuid()) @db.Uuid
+  courseId        String   @map("course_id") @db.Uuid
+  date            DateTime @db.Date
+  totalViews      Int      @default(0) @map("total_views")
+  uniqueViewers   Int      @default(0) @map("unique_viewers")
+  watchTimeMinutes Int     @default(0) @map("watch_time_minutes")
+  completionRate  Decimal  @default(0.00) @db.Decimal(5, 4)
+  averageRating   Decimal  @default(0.00) @db.Decimal(3, 2)
+  newSubscribers  Int      @default(0) @map("new_subscribers")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, date])
+  @@map("content_analytics")
+}
+
+model UserEngagement {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  date              DateTime @db.Date
+  sessionsCount     Int      @default(0) @map("sessions_count")
+  totalWatchTime    Int      @default(0) @map("total_watch_time")
+  episodesWatched   Int      @default(0) @map("episodes_watched")
+  episodesCompleted Int      @default(0) @map("episodes_completed")
+  searchesCount     Int      @default(0) @map("searches_count")
+  favoritesAdded    Int      @default(0) @map("favorites_added")
+  reviewsWritten    Int      @default(0) @map("reviews_written")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("user_engagement")
+}
+
+model TrendingContent {
+  id            String   @id @default(uuid()) @db.Uuid
+  courseId      String   @map("course_id") @db.Uuid
+  trendingScore Decimal  @map("trending_score") @db.Decimal(10, 4)
+  period        String   @db.VarChar(20) // daily, weekly, monthly
+  periodStart   DateTime @map("period_start") @db.Date
+  periodEnd     DateTime @map("period_end") @db.Date
+  rank          Int      @default(0)
+  category      String?  @db.VarChar(100)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, period, periodStart])
+  @@index([period, periodStart, rank])
+  @@map("trending_content")
+}
+
+model SearchQuery {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  query     String   @db.VarChar(500)
+  filters   Json     @default("{}")
+  results   Int      @default(0)
+  clicked   Boolean  @default(false)
+  clickedId String?  @map("clicked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([query])
+  @@index([createdAt])
+  @@map("search_queries")
+}

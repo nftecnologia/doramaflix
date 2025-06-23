@@ -1,0 +1,280 @@
+# =============================================
+# DORAMAFLIX - AWS DEPLOYMENT
+# Complete AWS deployment with ECS and RDS
+# =============================================
+
+name: Deploy to AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY_BACKEND: doramaflix/backend
+  ECR_REPOSITORY_FRONTEND: doramaflix/frontend
+  ECS_SERVICE_BACKEND: doramaflix-backend
+  ECS_SERVICE_FRONTEND: doramaflix-frontend
+  ECS_CLUSTER: doramaflix-cluster
+  ECS_TASK_DEFINITION_BACKEND: doramaflix-backend-task
+  ECS_TASK_DEFINITION_FRONTEND: doramaflix-frontend-task
+
+jobs:
+  # =============================================
+  # BUILD AND PUSH DOCKER IMAGES
+  # =============================================
+  
+  build-and-push:
+    name: Build and Push to ECR
+    runs-on: ubuntu-latest
+    
+    outputs:
+      backend-image: ${{ steps.build-backend.outputs.image }}
+      frontend-image: ${{ steps.build-frontend.outputs.image }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Backend image
+        id: build-backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build and push Frontend image
+        id: build-frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd frontend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # =============================================
+  # RUN DATABASE MIGRATIONS
+  # =============================================
+  
+  migrate-database:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run migrations
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ secrets.AWS_DATABASE_URL }}
+        run: npm run db:migrate:prod
+
+  # =============================================
+  # DEPLOY BACKEND TO ECS
+  # =============================================
+  
+  deploy-backend:
+    name: Deploy Backend to ECS
+    runs-on: ubuntu-latest
+    needs: [build-and-push, migrate-database]
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION_BACKEND }} \
+            --query taskDefinition > task-definition-backend.json
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def-backend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition-backend.json
+          container-name: doramaflix-backend
+          image: ${{ needs.build-and-push.outputs.backend-image }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-backend.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_BACKEND }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+  # =============================================
+  # DEPLOY FRONTEND TO ECS
+  # =============================================
+  
+  deploy-frontend:
+    name: Deploy Frontend to ECS
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-backend]
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION_FRONTEND }} \
+            --query taskDefinition > task-definition-frontend.json
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def-frontend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition-frontend.json
+          container-name: doramaflix-frontend
+          image: ${{ needs.build-and-push.outputs.frontend-image }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-frontend.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_FRONTEND }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+  # =============================================
+  # UPDATE CLOUDFRONT CACHE
+  # =============================================
+  
+  invalidate-cloudfront:
+    name: Invalidate CloudFront Cache
+    runs-on: ubuntu-latest
+    needs: deploy-frontend
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Invalidate CloudFront distribution
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+  # =============================================
+  # POST-DEPLOYMENT VERIFICATION
+  # =============================================
+  
+  verify-deployment:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    
+    steps:
+      - name: Wait for services to stabilize
+        run: sleep 60
+
+      - name: Health check - Backend
+        run: |
+          for i in {1..5}; do
+            if curl -f ${{ secrets.AWS_BACKEND_URL }}/health; then
+              echo "Backend health check passed"
+              break
+            fi
+            echo "Attempt $i failed, retrying in 30 seconds..."
+            sleep 30
+          done
+
+      - name: Health check - Frontend
+        run: |
+          for i in {1..5}; do
+            if curl -f ${{ secrets.AWS_FRONTEND_URL }}/health; then
+              echo "Frontend health check passed"
+              break
+            fi
+            echo "Attempt $i failed, retrying in 30 seconds..."
+            sleep 30
+          done
+
+      - name: Run smoke tests
+        run: |
+          # Test critical API endpoints
+          curl -f ${{ secrets.AWS_BACKEND_URL }}/api/v1/health
+          curl -f ${{ secrets.AWS_BACKEND_URL }}/api/v1/auth/health
+          
+          # Test frontend routes
+          curl -f ${{ secrets.AWS_FRONTEND_URL }}/
+          curl -f ${{ secrets.AWS_FRONTEND_URL }}/browse
+
+      - name: Create deployment record
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/deployments \
+            -d '{
+              "ref": "${{ github.sha }}",
+              "environment": "aws-production",
+              "description": "Deployment to AWS ECS",
+              "auto_merge": false
+            }'
+
+      - name: Notify teams
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          text: |
+            🚀 DoramaFlix deployed to AWS
+            Frontend: ${{ secrets.AWS_FRONTEND_URL }}
+            Backend: ${{ secrets.AWS_BACKEND_URL }}
+            Environment: ${{ github.event.inputs.environment }}
+            Status: ${{ job.status }}
+            Commit: ${{ github.sha }}
