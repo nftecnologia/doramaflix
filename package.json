@@ -1,0 +1,31 @@
+{
+  "name": "doramaflix",
+  "version": "1.0.0",
+  "description": "DoramaFlix - Netflix-style streaming platform",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "build": "cd backend && npm install",
+    "dev": "cd backend && npm run dev",
+    "backend:install": "cd backend && npm install",
+    "frontend:install": "cd frontend && npm install",
+    "install:all": "npm run backend:install && npm run frontend:install"
+  },
+  "keywords": [
+    "streaming",
+    "netflix",
+    "drama",
+    "k-drama",
+    "video",
+    "platform"
+  ],
+  "author": "DoramaFlix Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ]
+}
