@@ -22,7 +22,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
     loggerHelpers.logResponse(req, res, startTime);
     
     // Call original end method
-    originalEnd.call(this, chunk, encoding);
+    return originalEnd.call(this, chunk, encoding);
   };
 
   next();

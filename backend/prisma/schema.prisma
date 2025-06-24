@@ -209,6 +209,11 @@ model User {
 
   // Relationships
   refreshTokens     RefreshToken[]
+  oauthAccounts     OAuthAccount[]
+  sessions          UserSession[]
+  devices           UserDevice[]
+  twoFactorTokens   TwoFactorToken[]
+  permissions       UserPermission[]
   subscriptions     Subscription[]
   payments          Payment[]
   progress          UserProgress[]

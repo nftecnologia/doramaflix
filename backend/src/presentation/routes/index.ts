@@ -7,7 +7,7 @@ import { Router } from 'express';
 import { config } from '@/shared/config/environment';
 
 // Import route modules
-import { authRoutes } from './auth.routes';
+import authRoutes from './auth.routes';
 import { userRoutes } from './user.routes';
 import { contentRoutes } from './content.routes';
 import { categoryRoutes } from './category.routes';
