@@ -5,14 +5,23 @@
 
 const express = require('express');
 const cors = require('cors');
-const { PrismaClient } = require('@prisma/client');
 const { AuthService, authenticateJWT } = require('./src/middleware/jwt-auth');
 const uploadRoutes = require('./upload-routes');
 const adminRoutes = require('./admin-routes');
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
+
+// Initialize Prisma with error handling
+let prisma = null;
+try {
+  const { PrismaClient } = require('@prisma/client');
+  prisma = new PrismaClient();
+  console.log('✅ Prisma Client initialized successfully');
+} catch (error) {
+  console.warn('⚠️ Prisma Client initialization failed:', error.message);
+  console.log('📡 Server will run without database, using mock data');
+}
 
 // Middleware
 app.use(cors({
