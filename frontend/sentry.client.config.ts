@@ -19,10 +19,6 @@ Sentry.init({
   integrations: [
     // Browser integrations
     new Sentry.BrowserTracing({
-      routingInstrumentation: Sentry.nextRouterInstrumentation(
-        // @ts-ignore - Next.js router will be available
-        typeof window !== 'undefined' ? window.next?.router : undefined
-      ),
       tracePropagationTargets: [
         'localhost',
         'doramaflix.com',
