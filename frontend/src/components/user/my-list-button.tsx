@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useMyList } from '@/hooks/use-my-list';
+import { useMyList } from '@/hooks/use-user-features';
 import { Show } from '@/types/user';
 
 interface MyListButtonProps {

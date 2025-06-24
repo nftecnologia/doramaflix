@@ -8,6 +8,7 @@ import 'swiper/css/free-mode'
 import 'swiper/css/pagination'
 import ContentModal from '../components/common/ContentModal'
 import SearchComponent from '@/components/SearchComponent'
+import { useContent } from '@/hooks/use-content'
 
 export default function HomePage() {
   const [apiStatus, setApiStatus] = useState<string>('checking...')
@@ -15,9 +16,12 @@ export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedContent, setSelectedContent] = useState<any>(null)
+  
+  // Use real content from API
+  const { courses, categories, featuredContent, loading, error } = useContent()
 
   useEffect(() => {
-    fetch('http://localhost:3002/health')
+    fetch('http://localhost:3000/health')
       .then(response => response.json())
       .then(data => {
         setApiStatus('connected ✅')
@@ -77,22 +81,42 @@ export default function HomePage() {
     }
   }, [isMobile, isMobileMenuOpen])
 
-  // Mock data para simular conteúdo Netflix - Dados completos
-  const featuredContent = {
-    id: 0,
-    title: "Crash Landing on You",
-    description: "A chaebol heiress crash-lands in North Korea and falls in love with a army officer who helps her hide. When South Korean heiress Yoon Se-ri's paragliding trip goes wrong and she crash-lands in North Korea, she meets North Korean army officer Ri Jung-hyuk, who agrees to help her return home while hiding her from his comrades.",
-    year: 2019,
-    rating: "97% Match",
-    duration: "16 Episodes",
-    genre: ["Romance", "Drama", "Comedy"],
-    cast: ["Hyun Bin", "Son Ye-jin", "Seo Ji-hye", "Kim Jung-hyun", "Oh Man-seok", "Kim Sun-young"],
-    director: "Lee Jung-hyo",
-    maturityRating: "13+",
-    episodes: 16,
-    seasons: 1,
-    trailer: "sample-trailer.mp4"
-  }
+  // Format courses for category display
+  const categoryData = [
+    {
+      title: "Trending Now",
+      shows: courses.slice(0, 6).map(course => ({
+        id: course.id,
+        title: course.title,
+        image: course.thumbnailUrl,
+        rating: Math.round(course.rating * 10),
+        year: course.year,
+        duration: `${course.totalEpisodes} Episodes`
+      }))
+    },
+    {
+      title: "K-Dramas for You", 
+      shows: courses.filter(c => c.origin === 'korean').slice(0, 6).map(course => ({
+        id: course.id,
+        title: course.title,
+        image: course.thumbnailUrl,
+        rating: Math.round(course.rating * 10),
+        year: course.year,
+        duration: `${course.totalEpisodes} Episodes`
+      }))
+    },
+    {
+      title: "Popular on DoramaFlix",
+      shows: courses.slice(0, 6).map(course => ({
+        id: course.id,
+        title: course.title,
+        image: course.thumbnailUrl,
+        rating: Math.round(course.rating * 10),
+        year: course.year,
+        duration: `${course.totalEpisodes} Episodes`
+      }))
+    }
+  ]
 
   const categories = [
     {
@@ -458,7 +482,7 @@ export default function HomePage() {
             textShadow: '2px 2px 4px rgba(0,0,0,0.45)',
             textAlign: isMobile ? 'center' : 'left'
           }}>
-            {featuredContent.title}
+            {featuredContent?.title || 'Loading...'}
           </h1>
           
           <div style={{
@@ -475,10 +499,10 @@ export default function HomePage() {
               color: '#46d369',
               fontWeight: '700'
             }}>
-              {featuredContent.rating}
+              {featuredContent?.rating ? `${featuredContent.rating}★` : 'N/A'}
             </span>
-            <span>{featuredContent.year}</span>
-            <span>{featuredContent.duration}</span>
+            <span>{featuredContent?.year}</span>
+            <span>{featuredContent?.totalEpisodes ? `${featuredContent.totalEpisodes} Episodes` : ''}</span>
           </div>
 
           <p style={{
@@ -494,7 +518,7 @@ export default function HomePage() {
             WebkitBoxOrient: isMobile ? 'vertical' : 'initial',
             overflow: isMobile ? 'hidden' : 'visible'
           }}>
-            {featuredContent.description}
+            {featuredContent?.description || 'Loading content...'}
           </p>
 
           <div style={{
@@ -576,7 +600,7 @@ export default function HomePage() {
         position: 'relative',
         zIndex: 5
       }}>
-        {categories.map((category, index) => (
+        {categoryData.map((category, index) => (
           <section key={category.title} style={{ 
             marginBottom: isMobile ? '2rem' : '3rem',
             paddingLeft: isMobile ? '0' : '4%'
@@ -642,8 +666,15 @@ export default function HomePage() {
                         e.currentTarget.style.transform = 'scale(1)';
                       }}
                     >
-                      <div style={{ fontSize: '2.5rem', marginBottom: '0.3rem' }}>
-                        {show.image}
+                      <div style={{ 
+                        width: '100%', 
+                        height: '70%', 
+                        backgroundImage: `url(${show.image})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        borderTopLeftRadius: '6px',
+                        borderTopRightRadius: '6px'
+                      }}>
                       </div>
                       <div style={{
                         position: 'absolute',
