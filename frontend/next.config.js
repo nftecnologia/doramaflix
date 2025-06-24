@@ -1,31 +1,50 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Vercel optimizations
   experimental: {
     serverComponentsExternalPackages: [],
+    serverMinification: true,
+    webVitalsAttribution: ['CLS', 'LCP'],
   },
+  
+  // Image optimizations for Vercel
   images: {
     domains: [
       'localhost',
-      'your-cloudflare-r2-domain.com',
-      'your-aws-s3-domain.com',
+      'doramaflix.vercel.app',
+      'doramaflix-backend.railway.app',
       'images.unsplash.com',
       'via.placeholder.com',
+      'vercel.app',
+      'railway.app',
     ],
     formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 86400, // 24 hours
+    dangerouslyAllowSVG: false,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+  
+  // Environment variables
   env: {
+    NEXT_TELEMETRY_DISABLED: '1',
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
+  
+  // API rewrites for Vercel
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://doramaflix-backend.railway.app/api/v1'}/:path*`,
       },
     ];
   },
+  
+  // Security headers
   async headers() {
     return [
       {
@@ -43,19 +62,76 @@ const nextConfig = {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
           },
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
+      },
+      {
+        source: '/static/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
         ],
       },
     ];
   },
+  
+  // Performance optimizations
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
+  
+  // Build optimizations
   swcMinify: true,
   output: 'standalone',
   poweredByHeader: false,
   reactStrictMode: true,
   compress: true,
   generateEtags: false,
+  trailingSlash: false,
+  
+  // Webpack optimizations
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }) => {
+    // Optimize bundle splitting
+    if (!dev && !isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            priority: 10,
+            reuseExistingChunk: true,
+          },
+          common: {
+            minChunks: 2,
+            priority: 5,
+            reuseExistingChunk: true,
+          },
+        },
+      };
+    }
+    
+    // Reduce bundle size
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, 'src'),
+    };
+    
+    return config;
+  },
 };
 
 // Bundle analyzer

@@ -24,8 +24,7 @@
     "db:reset": "prisma migrate reset",
     "docker:dev": "docker-compose -f docker-compose.dev.yml up",
     "docker:prod": "docker-compose up",
-    "clean": "rimraf dist",
-    "prepare": "husky install"
+    "clean": "rimraf dist"
   },
   "keywords": [
     "nodejs",

@@ -4,19 +4,19 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package.json files
-COPY package*.json ./
-COPY backend/package*.json ./backend/
+# Install basic dependencies for server.js
+RUN npm init -y
+RUN npm install express cors bcrypt jsonwebtoken multer @vercel/blob @prisma/client --save
 
-# Install dependencies
-RUN npm install --only=production
-RUN cd backend && npm install --only=production
-
-# Copy application code
-COPY . .
+# Copy backend server files
+COPY backend/server.js ./
+COPY backend/admin-routes.js ./
+COPY backend/upload-routes.js ./
+COPY backend/src/ ./src/
+COPY backend/.env* ./
 
 # Expose port
 EXPOSE $PORT
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

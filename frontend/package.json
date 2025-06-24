@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:analyze": "ANALYZE=true npm run build",
+    "build:production": "NODE_ENV=production npm run type-check && npm run lint && npm run build",
     "start": "next start",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix",
-    "type-check": "tsc --noEmit",
+    "lint": "next lint --fix",
+    "lint:check": "next lint",
+    "type-check": "tsc --noEmit --incremental",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -19,7 +21,11 @@
     "format:check": "prettier --check .",
     "analyze": "ANALYZE=true npm run build",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "clean": "rm -rf .next out dist",
+    "clean:all": "npm run clean && rm -rf node_modules package-lock.json",
+    "vercel:build": "npm run build:production",
+    "performance": "npm run build && npx lighthouse http://localhost:3000 --view"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",

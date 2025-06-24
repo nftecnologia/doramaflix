@@ -21,7 +21,10 @@ export default function HomePage() {
   const { courses, categories: apiCategories, featuredContent } = useContent()
 
   useEffect(() => {
-    fetch('http://localhost:3000/health')
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
+    const healthUrl = baseUrl.replace('/api/v1', '/health')
+    
+    fetch(healthUrl)
       .then(response => response.json())
       .then(data => {
         setApiStatus('connected ✅')
