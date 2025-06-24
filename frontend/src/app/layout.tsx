@@ -3,6 +3,8 @@ import { Inter, Poppins } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
 import { Toaster } from 'react-hot-toast'
+import { PerformanceInitializer } from '@/components/performance-initializer'
+import { PWAInstaller } from '@/components/pwa-installer'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -103,6 +105,8 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
       </head>
       <body className={`${inter.variable} ${poppins.variable} font-sans antialiased bg-black text-white`}>
+        <PerformanceInitializer />
+        <PWAInstaller />
         <Providers>
           {children}
           <Toaster

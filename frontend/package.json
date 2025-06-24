@@ -31,6 +31,8 @@
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
     "@hookform/resolvers": "^3.3.2",
+    "@sentry/nextjs": "^7.81.1",
+    "@sentry/tracing": "^7.81.1",
     "@stripe/react-stripe-js": "^2.4.0",
     "@stripe/stripe-js": "^2.2.0",
     "@tailwindcss/forms": "^0.5.7",
@@ -65,10 +67,9 @@
     "tailwindcss": "^3.3.6",
     "typescript": "^5.3.2",
     "uuid": "^9.0.1",
+    "web-vitals": "^5.0.3",
     "zod": "^3.22.4",
-    "zustand": "^4.4.7",
-    "@sentry/nextjs": "^7.81.1",
-    "@sentry/tracing": "^7.81.1"
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^14.0.4",

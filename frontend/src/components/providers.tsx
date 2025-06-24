@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/auth-context'
 import { ThemeProvider } from '@/contexts/theme-context'
 import { VideoPlayerProvider } from '@/contexts/video-player-context'
+import { withSentryErrorBoundary, SentryUtils } from '@/lib/sentry'
 // import { UserProvider } from '@/contexts/user-context'
 
 // Create a client
@@ -19,6 +20,15 @@ const queryClient = new QueryClient({
         if (error?.response?.status === 401 || error?.response?.status === 403) {
           return false
         }
+        
+        // Log query errors to Sentry
+        if (failureCount === 3) {
+          SentryUtils.captureException(error, {
+            queryRetries: failureCount,
+            errorType: 'react-query-failure'
+          })
+        }
+        
         return failureCount < 3
       },
       refetchOnWindowFocus: false,
@@ -35,7 +45,16 @@ interface ProvidersProps {
   children: React.ReactNode
 }
 
-export function Providers({ children }: ProvidersProps) {
+function ProvidersComponent({ children }: ProvidersProps) {
+  // Track provider initialization
+  React.useEffect(() => {
+    SentryUtils.captureMessage('App providers initialized', 'info', {
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      environment: process.env.NODE_ENV
+    })
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
@@ -75,3 +94,6 @@ export function Providers({ children }: ProvidersProps) {
     </QueryClientProvider>
   )
 }
+
+// Export with Sentry Error Boundary
+export const Providers = withSentryErrorBoundary(ProvidersComponent)
