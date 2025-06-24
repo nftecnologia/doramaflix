@@ -40,7 +40,7 @@ class UserService {
       }
 
       const response = await apiClient.get<ApiResponse<UserFavorite[]>>('/users/me/favorites')
-      return response.data.data?.map(fav => fav.course).filter(Boolean) || []
+      return response.data.data?.map(fav => fav.course).filter(Boolean) as Course[] || []
     } catch (error) {
       console.error('Error fetching My List:', error)
       // Fallback to localStorage

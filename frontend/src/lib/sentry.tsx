@@ -4,6 +4,7 @@
 // =============================================
 
 import * as Sentry from '@sentry/nextjs';
+import React from 'react';
 
 /**
  * Frontend Sentry utilities
@@ -261,29 +262,39 @@ export const SentryUtils = {
 /**
  * Error boundary utility for React components
  */
-export class SentryErrorBoundary extends Sentry.ErrorBoundary {
-  static defaultProps = {
-    fallback: ({ error, resetError }: { error: Error; resetError: () => void }) => (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center p-6">
-          <h2 className="text-2xl font-bold text-white mb-4">Something went wrong</h2>
-          <p className="text-gray-400 mb-6">
-            We're sorry, but something unexpected happened. Our team has been notified.
-          </p>
-          <button
-            onClick={resetError}
-            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            Try again
-          </button>
-        </div>
+/**
+ * Error boundary fallback component
+ */
+function ErrorFallback({ error, resetError }: { error: Error; resetError: () => void }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="text-center p-6">
+        <h2 className="text-2xl font-bold text-white mb-4">Something went wrong</h2>
+        <p className="text-gray-400 mb-6">
+          We're sorry, but something unexpected happened. Our team has been notified.
+        </p>
+        <button
+          onClick={resetError}
+          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
+        >
+          Try again
+        </button>
       </div>
-    ),
-    beforeCapture: (scope: Sentry.Scope, error: Error) => {
+    </div>
+  );
+}
+
+/**
+ * Higher-order component that wraps components with Sentry error boundary
+ */
+export function withSentryErrorBoundary<P extends object>(Component: React.ComponentType<P>) {
+  return Sentry.withErrorBoundary(Component, {
+    fallback: ErrorFallback,
+    beforeCapture: (scope: Sentry.Scope, error: Error | null) => {
       scope.setTag('errorBoundary', true);
       scope.setLevel('error');
     },
-  };
+  });
 }
 
 export { Sentry };

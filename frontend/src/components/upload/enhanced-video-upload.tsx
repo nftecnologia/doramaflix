@@ -236,7 +236,7 @@ export function EnhancedVideoUpload({
         ...prev,
         status: 'paused',
       }))
-      toast.info('Upload paused')
+      toast('Upload paused')
     }
   }, [])
 

@@ -17,8 +17,8 @@ export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedContent, setSelectedContent] = useState<any>(null)
   
-  // Use real content from API
-  const { courses, categories, featuredContent, loading, error } = useContent()
+  // Use real content from API  
+  const { courses, categories: apiCategories, featuredContent } = useContent()
 
   useEffect(() => {
     fetch('http://localhost:3000/health')
@@ -118,7 +118,7 @@ export default function HomePage() {
     }
   ]
 
-  const categories = [
+  const mockCategories = [
     {
       title: "Trending Now",
       shows: [
@@ -155,8 +155,8 @@ export default function HomePage() {
   ]
 
   // Dados detalhados para o modal - simulando dados de API
-  const getContentDetails = (id: number) => {
-    const contentDetails: { [key: number]: any } = {
+  const getContentDetails = (id: number | string) => {
+    const contentDetails: { [key: number | string]: any } = {
       0: featuredContent, // Featured content
       1: {
         id: 1,
@@ -205,11 +205,11 @@ export default function HomePage() {
     // Retorna dados detalhados se existir, senão retorna dados básicos
     return contentDetails[id] || {
       id,
-      title: categories.flatMap(c => c.shows).find(s => s.id === id)?.title || "Unknown Title",
+      title: mockCategories.flatMap(c => c.shows).find(s => s.id.toString() === id.toString())?.title || "Unknown Title",
       description: "An amazing K-Drama that will captivate you with its compelling storyline, exceptional acting, and beautiful cinematography. This series explores themes of love, friendship, and personal growth in a uniquely Korean cultural context.",
-      year: categories.flatMap(c => c.shows).find(s => s.id === id)?.year || 2023,
-      rating: `${categories.flatMap(c => c.shows).find(s => s.id === id)?.rating || 85}% Match`,
-      duration: categories.flatMap(c => c.shows).find(s => s.id === id)?.duration || "16 Episodes",
+      year: mockCategories.flatMap(c => c.shows).find(s => s.id.toString() === id.toString())?.year || 2023,
+      rating: `${mockCategories.flatMap(c => c.shows).find(s => s.id.toString() === id.toString())?.rating || 85}% Match`,
+      duration: mockCategories.flatMap(c => c.shows).find(s => s.id.toString() === id.toString())?.duration || "16 Episodes",
       genre: ["Drama", "Romance", "Comedy"],
       cast: ["Actor 1", "Actor 2", "Actor 3", "Actor 4", "Actor 5"],
       director: "Director Name",
@@ -220,13 +220,13 @@ export default function HomePage() {
   }
 
   // Função para obter conteúdos similares
-  const getMoreLikeThis = (currentId: number) => {
-    const allShows = categories.flatMap(category => category.shows)
-    return allShows.filter(show => show.id !== currentId).slice(0, 9)
+  const getMoreLikeThis = (currentId: number | string) => {
+    const allShows = mockCategories.flatMap(category => category.shows)
+    return allShows.filter(show => show.id.toString() !== currentId.toString()).slice(0, 9)
   }
 
   // Função para abrir o modal
-  const openModal = (contentId: number) => {
+  const openModal = (contentId: number | string) => {
     const content = getContentDetails(contentId)
     setSelectedContent(content)
     setIsModalOpen(true)
