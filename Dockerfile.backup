@@ -1,0 +1,26 @@
+# Backup do Dockerfile original
+# Movido para evitar conflito com buildpack
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Initialize npm project
+RUN npm init -y
+
+# Install dependencies
+RUN npm install express cors bcrypt jsonwebtoken multer @vercel/blob @prisma/client prisma --save
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy backend files
+COPY backend/prisma/ ./prisma/
+COPY backend/server.js ./
+COPY backend/admin-routes.js ./
+COPY backend/upload-routes.js ./
+COPY backend/src/ ./src/
+
+EXPOSE $PORT
+
+CMD ["node", "server.js"]

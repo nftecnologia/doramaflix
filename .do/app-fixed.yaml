@@ -1,0 +1,78 @@
+# DigitalOcean App Platform - Configuração Corrigida
+# DoramaFlix - Configuração simplificada sem erros
+
+name: doramaflix
+region: nyc3
+
+# Serviços
+services:
+  # Serviço único do backend
+  - name: backend
+    source_dir: /
+    github:
+      repo: nftecnologia/doramaflix
+      branch: main
+      deploy_on_push: true
+    
+    # Build usando apenas buildpack Node.js (não Dockerfile)
+    build_command: |
+      echo "Installing dependencies..."
+      npm install
+      echo "Installing backend dependencies..."
+      cd backend && npm install
+      echo "Build complete"
+    
+    run_command: |
+      echo "Starting DoramaFlix backend..."
+      cd backend && node server.js
+    
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 8080
+    
+    # Roteamento simples
+    routes:
+      - path: /
+        preserve_path_prefix: false
+    
+    # Health check corrigido
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 30
+      timeout_seconds: 10
+      success_threshold: 1
+      failure_threshold: 3
+    
+    # Environment variables essenciais
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      - key: DATABASE_URL
+        value: ${db-postgresql-videoflix.DATABASE_URL}
+        scope: RUN_TIME
+      # Adicionar outras variáveis conforme necessário
+      - key: JWT_SECRET
+        type: SECRET
+        value: your-jwt-secret-here
+      - key: BLOB_READ_WRITE_TOKEN
+        type: SECRET
+        value: your-vercel-blob-token-here
+
+# Database
+databases:
+  - name: db-postgresql-videoflix
+    engine: PG
+    version: "15"
+    production: true
+    cluster_name: db-postgresql-videoflix
+    db_name: defaultdb
+    db_user: doadmin
+
+# Alertas básicos
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED
