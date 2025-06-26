@@ -95,7 +95,6 @@ const nextConfig = {
   
   // Build optimizations
   swcMinify: true,
-  output: 'standalone',
   poweredByHeader: false,
   reactStrictMode: true,
   compress: true,
