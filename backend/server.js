@@ -5,6 +5,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { AuthService, authenticateJWT } = require('./src/middleware/jwt-auth');
 const uploadRoutes = require('./upload-routes');
 const adminRoutes = require('./admin-routes');
@@ -25,11 +26,23 @@ try {
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3001', 'http://localhost:3000'],
+  origin: ['http://localhost:3001', 'http://localhost:3000', 'https://videoflix-ypray.ondigitalocean.app'],
   credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from frontend build
+const frontendPath = path.join(__dirname, '../frontend/out');
+const alternativeFrontendPath = path.join(process.cwd(), 'frontend/out');
+const existsFrontendPath = require('fs').existsSync(frontendPath) ? frontendPath : alternativeFrontendPath;
+
+console.log('🎨 Looking for frontend build at:', frontendPath);
+console.log('🎨 Alternative frontend path:', alternativeFrontendPath);
+console.log('🎨 Using frontend path:', existsFrontendPath);
+console.log('🎨 Current working directory:', process.cwd());
+
+app.use(express.static(existsFrontendPath));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -266,12 +279,35 @@ app.use('/api/v1/uploads', uploadRoutes);
 // Mount admin routes - Agent 9
 app.use('/api/v1/admin', adminRoutes);
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Route not found',
-    path: req.originalUrl
+// Serve frontend for all non-API routes
+app.get('*', (req, res) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      success: false,
+      error: 'API route not found',
+      path: req.originalUrl
+    });
+  }
+  
+  // Serve index.html for all other routes (SPA)
+  const indexPath = path.join(existsFrontendPath, 'index.html');
+  console.log('🎯 Serving frontend from:', indexPath);
+  console.log('🎯 Index file exists:', require('fs').existsSync(indexPath));
+  
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('❌ Frontend serve error:', err);
+      console.error('❌ Tried to serve from:', indexPath);
+      console.error('❌ Directory contents:', require('fs').existsSync(existsFrontendPath) ? require('fs').readdirSync(existsFrontendPath) : 'Directory does not exist');
+      res.status(404).json({
+        success: false,
+        error: 'Frontend not found - build may have failed',
+        frontendPath: existsFrontendPath,
+        indexPath: indexPath,
+        indexExists: require('fs').existsSync(indexPath)
+      });
+    }
   });
 });
 
