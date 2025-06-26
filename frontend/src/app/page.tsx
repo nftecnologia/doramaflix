@@ -484,14 +484,14 @@ export default function HomePage() {
             {isMobile ? (
               // Mobile: Swiper carousel
               <LazyLoad>
-                <LazySwiper
-                  modules={[FreeMode]}
-                  spaceBetween={12}
-                  slidesPerView={2.2}
-                  freeMode={true}
-                  grabCursor={true}
-                  className="px-6"
-                  breakpoints={{
+                <div className="px-6">
+                  <LazySwiper
+                    modules={[FreeMode]}
+                    spaceBetween={12}
+                    slidesPerView={2.2}
+                    freeMode={true}
+                    grabCursor={true}
+                    breakpoints={{
                     480: {
                       slidesPerView: 2.5,
                       spaceBetween: 16
@@ -529,7 +529,8 @@ export default function HomePage() {
                       </motion.div>
                     </LazySwiperSlide>
                   ))}
-                </LazySwiper>
+                  </LazySwiper>
+                </div>
               </LazyLoad>
             ) : (
               // Desktop: Grid layout
