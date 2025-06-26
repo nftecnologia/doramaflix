@@ -3,7 +3,7 @@
  * Monitors storage usage, costs, and provides insights for optimization
  */
 
-import { VercelBlobStorage } from '@/infrastructure/storage/vercel-blob-storage';
+import { DigitalOceanSpacesStorage } from '@/infrastructure/storage/digitalocean-spaces-storage';
 import { RedisConnection } from '@/infrastructure/cache/redis-connection';
 import { logger } from '@/shared/utils/logger';
 import { ValidationAppError } from '@/application/middlewares/error-handler';
@@ -154,7 +154,7 @@ export interface CostBreakdown {
 }
 
 export class StorageAnalyticsService {
-  private storage: VercelBlobStorage;
+  private storage: DigitalOceanSpacesStorage;
   private redis: RedisConnection;
   private readonly analyticsPrefix = 'analytics:';
   private readonly cacheTTL = 3600; // 1 hour cache
@@ -162,11 +162,11 @@ export class StorageAnalyticsService {
   // Pricing constants (these would typically come from config or external API)
   private readonly pricing = {
     storage: {
-      perGB: 0.15, // $0.15 per GB per month
+      perGB: 0.02, // $0.02 per GB per month (DigitalOcean Spaces pricing)
       currency: 'USD',
     },
     bandwidth: {
-      perGB: 0.12, // $0.12 per GB
+      perGB: 0.01, // $0.01 per GB (DigitalOcean Spaces CDN pricing)
       currency: 'USD',
     },
     processing: {
@@ -176,7 +176,7 @@ export class StorageAnalyticsService {
   };
 
   constructor() {
-    this.storage = new VercelBlobStorage();
+    this.storage = new DigitalOceanSpacesStorage();
     this.redis = new RedisConnection();
   }
 

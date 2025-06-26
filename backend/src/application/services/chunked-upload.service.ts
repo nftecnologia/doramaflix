@@ -4,7 +4,7 @@
  */
 
 import { RedisConnection } from '@/infrastructure/cache/redis-connection';
-import { VercelBlobStorage } from '@/infrastructure/storage/vercel-blob-storage';
+import { DigitalOceanSpacesStorage } from '@/infrastructure/storage/digitalocean-spaces-storage';
 import { logger } from '@/shared/utils/logger';
 import { ValidationAppError } from '@/application/middlewares/error-handler';
 import { v4 as uuidv4 } from 'uuid';
@@ -72,14 +72,14 @@ export interface UploadProgress {
 
 export class ChunkedUploadService {
   private redis: RedisConnection;
-  private storage: VercelBlobStorage;
+  private storage: DigitalOceanSpacesStorage;
   private readonly chunkSize: number = 5 * 1024 * 1024; // 5MB chunks
   private readonly maxRetries: number = 3;
   private readonly sessionTTL: number = 24 * 60 * 60; // 24 hours in seconds
 
   constructor() {
     this.redis = new RedisConnection();
-    this.storage = new VercelBlobStorage();
+    this.storage = new DigitalOceanSpacesStorage();
   }
 
   /**

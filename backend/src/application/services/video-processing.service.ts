@@ -9,7 +9,7 @@ import { promisify } from 'util';
 import { mkdir, writeFile, readdir, unlink, stat } from 'fs/promises';
 import { join, dirname, basename, extname } from 'path';
 import { createReadStream, createWriteStream } from 'fs';
-import { VercelBlobStorage } from '@/infrastructure/storage/vercel-blob-storage';
+import { DigitalOceanSpacesStorage } from '@/infrastructure/storage/digitalocean-spaces-storage';
 import { RedisConnection } from '@/infrastructure/cache/redis-connection';
 import { logger } from '@/shared/utils/logger';
 import { ValidationAppError } from '@/application/middlewares/error-handler';
@@ -70,12 +70,12 @@ export interface ThumbnailOptions {
 }
 
 export class VideoProcessingService {
-  private storage: VercelBlobStorage;
+  private storage: DigitalOceanSpacesStorage;
   private redis: RedisConnection;
   private tempDir: string;
 
   constructor() {
-    this.storage = new VercelBlobStorage();
+    this.storage = new DigitalOceanSpacesStorage();
     this.redis = new RedisConnection();
     this.tempDir = join(process.cwd(), 'temp', 'video-processing');
   }

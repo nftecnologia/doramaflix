@@ -1,9 +1,9 @@
 /**
  * Upload Service
- * Handles file uploads with Vercel Blob Storage
+ * Handles file uploads with DigitalOcean Spaces Storage
  */
 
-import { VercelBlobStorage, UploadResult } from '@/infrastructure/storage/vercel-blob-storage';
+import { DigitalOceanSpacesStorage, UploadResult } from '@/infrastructure/storage/digitalocean-spaces-storage';
 import { config } from '@/shared/config/environment';
 import { logger, loggerHelpers } from '@/shared/utils/logger';
 import { ValidationAppError } from '@/application/middlewares/error-handler';
@@ -41,10 +41,10 @@ export interface ProcessedUpload {
 }
 
 export class UploadService {
-  private storage: VercelBlobStorage;
+  private storage: DigitalOceanSpacesStorage;
 
   constructor() {
-    this.storage = new VercelBlobStorage();
+    this.storage = new DigitalOceanSpacesStorage();
   }
 
   /**
@@ -63,7 +63,7 @@ export class UploadService {
       const fileExtension = file.originalname.split('.').pop();
       const filename = `${data.episodeId}_${Date.now()}.${fileExtension}`;
 
-      // Upload to Vercel Blob
+      // Upload to DigitalOcean Spaces
       const result = await this.storage.uploadVideo(
         file.buffer,
         filename,
@@ -115,7 +115,7 @@ export class UploadService {
       // Generate unique filename
       const filename = `${data.entityId}_${Date.now()}.webp`;
 
-      // Upload to Vercel Blob
+      // Upload to DigitalOcean Spaces
       const result = await this.storage.uploadImage(
         processedImage,
         filename,
@@ -167,7 +167,7 @@ export class UploadService {
       // Generate unique filename
       const filename = `${data.language}_${Date.now()}.vtt`;
 
-      // Upload to Vercel Blob
+      // Upload to DigitalOcean Spaces
       const result = await this.storage.uploadSubtitle(
         processedSubtitle,
         filename,
@@ -206,7 +206,9 @@ export class UploadService {
    */
   async deleteFile(url: string, userId: string): Promise<void> {
     try {
-      await this.storage.deleteFile(url);
+      // Extract key from URL for DigitalOcean Spaces
+      const key = this.extractKeyFromUrl(url);
+      await this.storage.deleteFile(key);
       loggerHelpers.logFile('file_deleted', url);
       
       logger.info('File deleted successfully', { url, userId });
@@ -221,7 +223,8 @@ export class UploadService {
    */
   async getFileMetadata(url: string): Promise<any> {
     try {
-      return await this.storage.getFileMetadata(url);
+      const key = this.extractKeyFromUrl(url);
+      return await this.storage.getFileMetadata(key);
     } catch (error) {
       logger.error('Failed to get file metadata', { error, url });
       throw error;
@@ -261,6 +264,24 @@ export class UploadService {
     } catch (error) {
       logger.error('Failed to get storage stats', { error });
       throw error;
+    }
+  }
+
+  /**
+   * Extract key from DigitalOcean Spaces URL
+   */
+  private extractKeyFromUrl(url: string): string {
+    try {
+      // Handle both public URL and CDN URL formats
+      // Public URL: https://bucket.region.digitaloceanspaces.com/path/to/file
+      // CDN URL: https://cdn.example.com/path/to/file
+      const urlObj = new URL(url);
+      
+      // Remove leading slash and return the path
+      return urlObj.pathname.substring(1);
+    } catch (error) {
+      // If URL parsing fails, assume it's already a key
+      return url;
     }
   }
 
