@@ -1,0 +1,434 @@
+# DigitalOcean App Platform Configuration for DoramaFlix
+# This configuration deploys a Netflix-like streaming platform with:
+# - Next.js frontend (React/TypeScript)
+# - Node.js backend API (Express/TypeScript)
+# - PostgreSQL database
+# - Redis for caching
+
+name: doramaflix
+region: nyc3
+
+# Environment variables global
+envs:
+  - key: NODE_ENV
+    value: production
+  - key: ENVIRONMENT
+    value: production
+  - key: TZ
+    value: America/New_York
+
+# Database configuration
+databases:
+  - name: doramaflix-db
+    engine: PG
+    version: "15"
+    production: true
+    
+# Services configuration
+services:
+  # Frontend service (Next.js)
+  - name: frontend
+    source_dir: /frontend
+    github:
+      repo: your-username/doramaflix
+      branch: main
+      deploy_on_push: true
+    build_command: |
+      echo "Building Next.js frontend..."
+      npm ci
+      npm run build:production
+    run_command: npm start
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 3001
+    routes:
+      - path: /
+        preserve_path_prefix: false
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 60
+      period_seconds: 30
+      timeout_seconds: 10
+      success_threshold: 1
+      failure_threshold: 3
+    envs:
+      # Frontend-specific environment variables
+      - key: NEXT_PUBLIC_API_URL
+        value: ${APP_URL}/api
+      - key: NEXT_PUBLIC_APP_URL
+        value: ${APP_URL}
+      - key: NEXT_PUBLIC_ENVIRONMENT
+        value: production
+      - key: NEXTAUTH_URL
+        value: ${APP_URL}
+      - key: NEXTAUTH_SECRET
+        type: SECRET
+        value: your-nextauth-secret-key-here
+      # Sentry configuration
+      - key: NEXT_PUBLIC_SENTRY_DSN
+        type: SECRET
+        value: your-sentry-dsn-here
+      - key: SENTRY_ORG
+        value: your-sentry-org
+      - key: SENTRY_PROJECT
+        value: doramaflix-frontend
+      # Analytics
+      - key: NEXT_PUBLIC_GA_MEASUREMENT_ID
+        value: your-ga-measurement-id
+      # Feature flags
+      - key: NEXT_PUBLIC_ENABLE_PWA
+        value: "true"
+      - key: NEXT_PUBLIC_ENABLE_OFFLINE_MODE
+        value: "true"
+      # Performance monitoring
+      - key: NEXT_PUBLIC_ENABLE_PERFORMANCE_MONITORING
+        value: "true"
+      # Storage configuration
+      - key: NEXT_PUBLIC_STORAGE_PROVIDER
+        value: digitalocean
+      - key: NEXT_PUBLIC_CDN_URL
+        value: your-cdn-url-here
+      # Stripe configuration (if using payments)
+      - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+        type: SECRET
+        value: your-stripe-publishable-key
+      # Social auth
+      - key: GOOGLE_CLIENT_ID
+        type: SECRET
+        value: your-google-client-id
+      - key: GOOGLE_CLIENT_SECRET
+        type: SECRET
+        value: your-google-client-secret
+      - key: FACEBOOK_CLIENT_ID
+        type: SECRET
+        value: your-facebook-client-id
+      - key: FACEBOOK_CLIENT_SECRET
+        type: SECRET
+        value: your-facebook-client-secret
+
+  # Backend service (Node.js API)
+  - name: backend
+    source_dir: /backend
+    github:
+      repo: your-username/doramaflix
+      branch: main
+      deploy_on_push: true
+    build_command: |
+      echo "Building Node.js backend..."
+      npm ci
+      npm run db:generate
+      npm run build
+    run_command: |
+      echo "Starting backend server..."
+      npm run db:migrate:prod
+      npm start
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    http_port: 3000
+    routes:
+      - path: /api
+        preserve_path_prefix: true
+      - path: /health
+        preserve_path_prefix: false
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 90
+      period_seconds: 30
+      timeout_seconds: 10
+      success_threshold: 1
+      failure_threshold: 3
+    envs:
+      # Database configuration
+      - key: DATABASE_URL
+        value: ${doramaflix-db.DATABASE_URL}
+      - key: DB_HOST
+        value: ${doramaflix-db.HOSTNAME}
+      - key: DB_PORT
+        value: ${doramaflix-db.PORT}
+      - key: DB_NAME
+        value: ${doramaflix-db.DATABASE}
+      - key: DB_USER
+        value: ${doramaflix-db.USERNAME}
+      - key: DB_PASSWORD
+        value: ${doramaflix-db.PASSWORD}
+      # Redis configuration (if using external Redis)
+      - key: REDIS_URL
+        type: SECRET
+        value: your-redis-connection-string
+      # JWT configuration
+      - key: JWT_SECRET
+        type: SECRET
+        value: your-jwt-secret-key-here
+      - key: JWT_EXPIRES_IN
+        value: "7d"
+      - key: JWT_REFRESH_SECRET
+        type: SECRET
+        value: your-jwt-refresh-secret-key
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: "30d"
+      # Encryption
+      - key: ENCRYPTION_KEY
+        type: SECRET
+        value: your-encryption-key-here
+      # API Keys
+      - key: API_KEY
+        type: SECRET
+        value: your-api-key-here
+      # Email configuration
+      - key: SMTP_HOST
+        value: smtp.your-provider.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        type: SECRET
+        value: your-smtp-user
+      - key: SMTP_PASSWORD
+        type: SECRET
+        value: your-smtp-password
+      - key: EMAIL_FROM
+        value: noreply@doramaflix.com
+      # Storage configuration (DigitalOcean Spaces)
+      - key: DO_SPACES_KEY
+        type: SECRET
+        value: your-do-spaces-access-key
+      - key: DO_SPACES_SECRET
+        type: SECRET
+        value: your-do-spaces-secret-key
+      - key: DO_SPACES_ENDPOINT
+        value: nyc3.digitaloceanspaces.com
+      - key: DO_SPACES_BUCKET
+        value: doramaflix-storage
+      - key: DO_SPACES_REGION
+        value: nyc3
+      # CDN configuration
+      - key: CDN_URL
+        value: https://your-cdn-url.com
+      - key: CDN_ENABLED
+        value: "true"
+      # Video processing
+      - key: FFMPEG_PATH
+        value: /usr/bin/ffmpeg
+      - key: ENABLE_VIDEO_PROCESSING
+        value: "true"
+      - key: MAX_FILE_SIZE
+        value: "2147483648" # 2GB
+      # Payment processing
+      - key: STRIPE_SECRET_KEY
+        type: SECRET
+        value: your-stripe-secret-key
+      - key: STRIPE_WEBHOOK_SECRET
+        type: SECRET
+        value: your-stripe-webhook-secret
+      # Sentry configuration
+      - key: SENTRY_DSN
+        type: SECRET
+        value: your-backend-sentry-dsn
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      # Rate limiting
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000" # 15 minutes
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: "100"
+      # CORS configuration
+      - key: CORS_ORIGIN
+        value: ${APP_URL}
+      - key: CORS_CREDENTIALS
+        value: "true"
+      # Session configuration
+      - key: SESSION_SECRET
+        type: SECRET
+        value: your-session-secret-key
+      - key: SESSION_MAX_AGE
+        value: "86400000" # 24 hours
+      # Security
+      - key: BCRYPT_ROUNDS
+        value: "12"
+      - key: ENABLE_HTTPS_REDIRECT
+        value: "true"
+      - key: ENABLE_HELMET
+        value: "true"
+      # Logging
+      - key: LOG_LEVEL
+        value: info
+      - key: LOG_FORMAT
+        value: json
+      # Features
+      - key: ENABLE_ANALYTICS
+        value: "true"
+      - key: ENABLE_MONITORING
+        value: "true"
+      - key: ENABLE_CACHING
+        value: "true"
+      # External services
+      - key: TMDB_API_KEY
+        type: SECRET
+        value: your-tmdb-api-key
+      - key: YOUTUBE_API_KEY
+        type: SECRET
+        value: your-youtube-api-key
+      # Queue configuration
+      - key: QUEUE_REDIS_URL
+        type: SECRET
+        value: your-queue-redis-url
+      - key: ENABLE_QUEUE_PROCESSING
+        value: "true"
+      # Webhook configuration
+      - key: WEBHOOK_SECRET
+        type: SECRET
+        value: your-webhook-secret
+      # Admin configuration
+      - key: ADMIN_EMAIL
+        value: admin@doramaflix.com
+      - key: ADMIN_PASSWORD
+        type: SECRET
+        value: your-admin-password
+      # Backup configuration
+      - key: ENABLE_AUTOMATED_BACKUPS
+        value: "true"
+      - key: BACKUP_RETENTION_DAYS
+        value: "30"
+
+# Static sites (for serving static assets if needed)
+static_sites: []
+
+# Workers (for background job processing)
+workers:
+  - name: video-processor
+    source_dir: /backend
+    github:
+      repo: your-username/doramaflix
+      branch: main
+      deploy_on_push: true
+    build_command: |
+      echo "Building video processor worker..."
+      npm ci
+      npm run build
+    run_command: node dist/workers/video-processor.js
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-2gb
+    envs:
+      # Inherit most environment variables from backend
+      - key: DATABASE_URL
+        value: ${doramaflix-db.DATABASE_URL}
+      - key: REDIS_URL
+        type: SECRET
+        value: your-redis-connection-string
+      - key: DO_SPACES_KEY
+        type: SECRET
+        value: your-do-spaces-access-key
+      - key: DO_SPACES_SECRET
+        type: SECRET
+        value: your-do-spaces-secret-key
+      - key: DO_SPACES_ENDPOINT
+        value: nyc3.digitaloceanspaces.com
+      - key: DO_SPACES_BUCKET
+        value: doramaflix-storage
+      - key: FFMPEG_PATH
+        value: /usr/bin/ffmpeg
+      - key: WORKER_TYPE
+        value: video-processor
+      - key: MAX_CONCURRENT_JOBS
+        value: "2"
+
+# Jobs (for one-time or scheduled tasks)
+jobs:
+  - name: db-migrate
+    kind: PRE_DEPLOY
+    source_dir: /backend
+    github:
+      repo: your-username/doramaflix
+      branch: main
+    build_command: |
+      echo "Preparing database migration..."
+      npm ci
+      npm run db:generate
+    run_command: npm run db:migrate:prod
+    environment_slug: node-js
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    envs:
+      - key: DATABASE_URL
+        value: ${doramaflix-db.DATABASE_URL}
+
+  - name: db-seed
+    kind: POST_DEPLOY
+    source_dir: /backend
+    github:
+      repo: your-username/doramaflix
+      branch: main
+    build_command: |
+      echo "Preparing database seeding..."
+      npm ci
+      npm run db:generate
+    run_command: npm run db:seed
+    environment_slug: node-js
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    envs:
+      - key: DATABASE_URL
+        value: ${doramaflix-db.DATABASE_URL}
+      - key: ADMIN_EMAIL
+        value: admin@doramaflix.com
+      - key: ADMIN_PASSWORD
+        type: SECRET
+        value: your-admin-password
+
+# Domain configuration (update with your actual domain)
+domains:
+  - domain: doramaflix.com
+    type: PRIMARY
+    minimum_tls_version: "1.2"
+  - domain: www.doramaflix.com
+    type: ALIAS
+    minimum_tls_version: "1.2"
+
+# Ingress rules for routing
+ingress:
+  rules:
+    # API routes go to backend
+    - match:
+        path:
+          prefix: /api
+      component:
+        name: backend
+        preserve_path_prefix: true
+    
+    # Health check routes
+    - match:
+        path:
+          prefix: /health
+      component:
+        name: backend
+        preserve_path_prefix: false
+    
+    # All other routes go to frontend (SPA routing)
+    - match:
+        path:
+          prefix: /
+      component:
+        name: frontend
+        preserve_path_prefix: false
+
+# Alerts configuration
+alerts:
+  - rule: DEPLOYMENT_FAILED
+    disabled: false
+  - rule: DOMAIN_FAILED
+    disabled: false
+  - rule: CPU_UTILIZATION
+    disabled: false
+    operator: GREATER_THAN
+    value: 80
+    window: TEN_MINUTES
+  - rule: MEM_UTILIZATION
+    disabled: false
+    operator: GREATER_THAN
+    value: 80
+    window: TEN_MINUTES
+  - rule: RESTART_COUNT
+    disabled: false
+    operator: GREATER_THAN
+    value: 5
+    window: ONE_HOUR

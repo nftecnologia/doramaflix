@@ -4,11 +4,11 @@
   "description": "DoramaFlix Frontend - Netflix-like streaming platform UI",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "build:analyze": "ANALYZE=true npm run build",
     "build:production": "NODE_ENV=production npm run type-check && npm run lint && npm run build",
-    "start": "next start",
+    "start": "next start -p 3001",
     "lint": "next lint --fix",
     "lint:check": "next lint",
     "type-check": "tsc --noEmit --incremental",

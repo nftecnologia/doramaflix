@@ -102,19 +102,63 @@ const nextConfig = {
   generateEtags: false,
   trailingSlash: false,
   
+  // Advanced performance optimizations
+  optimizeFonts: true,
+  modularizeImports: {
+    'swiper/react': {
+      transform: 'swiper/react/{{member}}',
+    },
+    'swiper': {
+      transform: 'swiper/{{member}}',
+    },
+  },
+  
   // Webpack optimizations
   webpack: (config, { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }) => {
-    // Optimize bundle splitting
+    // Optimize bundle splitting for better performance
     if (!dev && !isServer) {
       config.optimization.splitChunks = {
         chunks: 'all',
+        minSize: 20000,
+        maxSize: 244000,
         cacheGroups: {
+          // React and core libraries
+          react: {
+            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+            name: 'react',
+            priority: 20,
+            reuseExistingChunk: true,
+          },
+          // Swiper and heavy UI components
+          swiper: {
+            test: /[\\/]node_modules[\\/]swiper[\\/]/,
+            name: 'swiper',
+            priority: 15,
+            reuseExistingChunk: true,
+          },
+          // Framer Motion
+          motion: {
+            test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+            name: 'motion',
+            priority: 15,
+            reuseExistingChunk: true,
+          },
+          // TanStack Query
+          query: {
+            test: /[\\/]node_modules[\\/]@tanstack[\\/]/,
+            name: 'query',
+            priority: 15,
+            reuseExistingChunk: true,
+          },
+          // Other vendor libraries
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name: 'vendors',
             priority: 10,
             reuseExistingChunk: true,
+            enforce: true,
           },
+          // Common chunks
           common: {
             minChunks: 2,
             priority: 5,

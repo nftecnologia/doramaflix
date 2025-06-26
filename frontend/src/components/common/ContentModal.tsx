@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, memo, useCallback } from 'react'
 
 interface ContentModalProps {
   isOpen: boolean
@@ -30,7 +30,7 @@ interface ContentModalProps {
   }>
 }
 
-export default function ContentModal({ isOpen, onClose, content, moreLikeThis }: ContentModalProps) {
+const ContentModal = memo(function ContentModal({ isOpen, onClose, content, moreLikeThis }: ContentModalProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
 
@@ -48,19 +48,19 @@ export default function ContentModal({ isOpen, onClose, content, moreLikeThis }:
     }
   }, [isOpen])
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsClosing(true)
     setTimeout(() => {
       setIsClosing(false)
       onClose()
     }, 300)
-  }
+  }, [onClose])
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       handleClose()
     }
-  }
+  }, [handleClose])
 
   if (!isOpen) return null
 
@@ -535,4 +535,6 @@ export default function ContentModal({ isOpen, onClose, content, moreLikeThis }:
       </div>
     </div>
   )
-}
+})
+
+export default ContentModal

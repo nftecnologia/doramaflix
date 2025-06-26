@@ -1,14 +1,17 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import { FreeMode, Pagination } from 'swiper/modules'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { FreeMode, Navigation, Autoplay } from 'swiper/modules'
+import LazyLoad from '@/components/common/LazyLoad'
+import LazySwiper, { LazySwiperSlide } from '@/components/common/LazySwiper'
+import { ContentModalLazy, SearchComponentLazy } from '@/components/common/LazyComponents'
+import { useContent } from '@/hooks/use-content'
+import { motion, AnimatePresence } from 'framer-motion'
+
+// Import Swiper styles
 import 'swiper/css'
 import 'swiper/css/free-mode'
-import 'swiper/css/pagination'
-import ContentModal from '../components/common/ContentModal'
-import SearchComponent from '@/components/SearchComponent'
-import { useContent } from '@/hooks/use-content'
+import 'swiper/css/navigation'
 
 export default function HomePage() {
   const [apiStatus, setApiStatus] = useState<string>('checking...')
@@ -16,9 +19,11 @@ export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedContent, setSelectedContent] = useState<any>(null)
+  const [activeCategory, setActiveCategory] = useState(0)
+  const [scrollY, setScrollY] = useState(0)
   
-  // Use real content from API  
-  const { courses, categories: apiCategories, featuredContent } = useContent()
+  // Use real content from API with loading states
+  const { courses, categories: apiCategories, featuredContent, loading } = useContent()
 
   useEffect(() => {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
@@ -39,7 +44,12 @@ export default function HomePage() {
       setIsMobile(window.innerWidth < 768)
     }
     
+    const handleScroll = () => {
+      setScrollY(window.scrollY)
+    }
+    
     checkMobile()
+    window.addEventListener('scroll', handleScroll)
     
     // Throttled resize listener for performance
     let timeoutId: NodeJS.Timeout
@@ -52,6 +62,7 @@ export default function HomePage() {
     
     return () => {
       window.removeEventListener('resize', throttledResize)
+      window.removeEventListener('scroll', handleScroll)
       clearTimeout(timeoutId)
     }
   }, [])
@@ -84,863 +95,542 @@ export default function HomePage() {
     }
   }, [isMobile, isMobileMenuOpen])
 
-  // Format courses for category display
-  const categoryData = [
-    {
-      title: "Trending Now",
-      shows: courses.slice(0, 6).map(course => ({
-        id: course.id,
-        title: course.title,
-        image: course.thumbnailUrl,
-        rating: Math.round(course.rating * 10),
-        year: course.year,
-        duration: `${course.totalEpisodes} Episodes`
-      }))
-    },
-    {
-      title: "K-Dramas for You", 
-      shows: courses.filter(c => c.origin === 'korean').slice(0, 6).map(course => ({
-        id: course.id,
-        title: course.title,
-        image: course.thumbnailUrl,
-        rating: Math.round(course.rating * 10),
-        year: course.year,
-        duration: `${course.totalEpisodes} Episodes`
-      }))
-    },
-    {
-      title: "Popular on DoramaFlix",
-      shows: courses.slice(0, 6).map(course => ({
-        id: course.id,
-        title: course.title,
-        image: course.thumbnailUrl,
-        rating: Math.round(course.rating * 10),
-        year: course.year,
-        duration: `${course.totalEpisodes} Episodes`
-      }))
-    }
-  ]
+  // Memoized category data to prevent unnecessary re-renders
+  const categoryData = useMemo(() => {
+    if (loading || courses.length === 0) return []
+    
+    const transformCourse = (course: any) => ({
+      id: course.id,
+      title: course.title,
+      image: course.thumbnailUrl || 'https://via.placeholder.com/300x200?text=No+Image',
+      rating: Math.round((course.rating || 0) * 10),
+      year: course.year || new Date().getFullYear(),
+      duration: `${course.totalEpisodes || 0} Episodes`
+    })
 
-  const mockCategories = [
-    {
-      title: "Trending Now",
-      shows: [
-        { id: 1, title: "Squid Game", image: "🦑", rating: 95, year: 2021, duration: "9 Episodes" },
-        { id: 2, title: "Hotel Del Luna", image: "🏨", rating: 92, year: 2019, duration: "16 Episodes" },
-        { id: 3, title: "The Glory", image: "⚡", rating: 89, year: 2022, duration: "16 Episodes" },
-        { id: 4, title: "Business Proposal", image: "💼", rating: 87, year: 2022, duration: "12 Episodes" },
-        { id: 5, title: "Twenty-Five Twenty-One", image: "🏐", rating: 94, year: 2022, duration: "16 Episodes" },
-        { id: 6, title: "Hometown Cha-Cha-Cha", image: "🏖️", rating: 91, year: 2021, duration: "16 Episodes" }
-      ]
-    },
-    {
-      title: "K-Dramas for You",
-      shows: [
-        { id: 7, title: "Descendants of the Sun", image: "☀️", rating: 96, year: 2016, duration: "16 Episodes" },
-        { id: 8, title: "Goblin", image: "👻", rating: 98, year: 2016, duration: "16 Episodes" },
-        { id: 9, title: "Reply 1988", image: "📻", rating: 99, year: 2015, duration: "20 Episodes" },
-        { id: 10, title: "My Love from the Star", image: "⭐", rating: 93, year: 2013, duration: "21 Episodes" },
-        { id: 11, title: "Secret Garden", image: "🌿", rating: 90, year: 2010, duration: "20 Episodes" },
-        { id: 12, title: "Boys Over Flowers", image: "🌸", rating: 88, year: 2009, duration: "25 Episodes" }
-      ]
-    },
-    {
-      title: "New Releases",
-      shows: [
-        { id: 13, title: "King the Land", image: "👑", rating: 85, year: 2023, duration: "16 Episodes" },
-        { id: 14, title: "The Summer I Turned Pretty", image: "🌊", rating: 86, year: 2022, duration: "14 Episodes" },
-        { id: 15, title: "Moving", image: "🏃", rating: 92, year: 2023, duration: "20 Episodes" },
-        { id: 16, title: "See You in My 19th Life", image: "🔄", rating: 88, year: 2023, duration: "12 Episodes" },
-        { id: 17, title: "Destined with You", image: "💫", rating: 84, year: 2023, duration: "16 Episodes" },
-        { id: 18, title: "My Demon", image: "😈", rating: 87, year: 2023, duration: "16 Episodes" }
-      ]
-    }
-  ]
+    return [
+      {
+        title: "Trending Now",
+        shows: courses.slice(0, 6).map(transformCourse)
+      },
+      {
+        title: "K-Dramas for You", 
+        shows: courses.filter(c => c.origin === 'korean').slice(0, 6).map(transformCourse)
+      },
+      {
+        title: "Popular on DoramaFlix",
+        shows: courses.slice(6, 12).map(transformCourse)
+      }
+    ]
+  }, [courses, loading])
 
-  // Dados detalhados para o modal - simulando dados de API
-  const getContentDetails = (id: number | string) => {
-    const contentDetails: { [key: number | string]: any } = {
-      0: featuredContent, // Featured content
-      1: {
-        id: 1,
-        title: "Squid Game",
-        description: "Players compete in children's games with deadly consequences for a massive cash prize. 456 cash-strapped players accept a mysterious invitation to compete in children's games. Inside, a tempting prize awaits — with deadly high stakes.",
-        year: 2021,
-        rating: "95% Match",
-        duration: "9 Episodes",
-        genre: ["Thriller", "Drama", "Mystery"],
-        cast: ["Lee Jung-jae", "Park Hae-soo", "Wi Ha-jun", "HoYeon Jung", "O Yeong-su", "Heo Sung-tae"],
-        director: "Hwang Dong-hyuk",
-        maturityRating: "18+",
-        episodes: 9,
-        seasons: 1
-      },
-      2: {
-        id: 2,
-        title: "Hotel Del Luna",
-        description: "When he's invited to manage a hotel for dead souls, an elite hotelier gets to know the establishment's ancient owner and her strange world. A supernatural romance that follows a CEO who becomes the manager of a mysterious hotel that caters to ghosts.",
-        year: 2019,
-        rating: "92% Match",
-        duration: "16 Episodes",
-        genre: ["Fantasy", "Romance", "Comedy"],
-        cast: ["IU", "Yeo Jin-goo", "Shin Jung-keun", "Bae Hae-seon", "Pyo Ye-jin", "Kim Jun-hyun"],
-        director: "Oh Choong-hwan",
-        maturityRating: "15+",
-        episodes: 16,
-        seasons: 1
-      },
-      8: {
-        id: 8,
-        title: "Goblin",
-        description: "A goblin who needs a human bride to end his immortal life meets a grim reaper and a sprightly student in this fantasy romance. In his quest for a bride to break his immortal curse, a 939-year-old guardian of souls meets a grim reaper and a sprightly student with a tragic past.",
-        year: 2016,
-        rating: "98% Match",
-        duration: "16 Episodes",
-        genre: ["Fantasy", "Romance", "Drama"],
-        cast: ["Gong Yoo", "Kim Go-eun", "Lee Dong-wook", "Yoo In-na", "Yook Sung-jae", "Lee El"],
-        director: "Lee Eung-bok",
-        maturityRating: "15+",
-        episodes: 16,
+  // Optimized functions with useCallback to prevent unnecessary re-renders
+  const getContentDetails = useCallback((id: number | string) => {
+    if (id === 0 || id === '0') {
+      return featuredContent
+    }
+    
+    // Find content in courses
+    const course = courses.find(c => c.id === id || c.id === id.toString())
+    if (course) {
+      return {
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        year: course.year,
+        rating: `${Math.round(course.rating * 10)}% Match`,
+        duration: `${course.totalEpisodes} Episodes`,
+        genre: course.genre ? course.genre.split(',') : ["Drama"],
+        cast: ["Leading Actor", "Supporting Actor", "Guest Star"],
+        director: "Director",
+        maturityRating: "13+",
+        episodes: course.totalEpisodes,
         seasons: 1
       }
     }
     
-    // Retorna dados detalhados se existir, senão retorna dados básicos
-    return contentDetails[id] || {
+    // Default fallback
+    return {
       id,
-      title: mockCategories.flatMap(c => c.shows).find(s => s.id.toString() === id.toString())?.title || "Unknown Title",
-      description: "An amazing K-Drama that will captivate you with its compelling storyline, exceptional acting, and beautiful cinematography. This series explores themes of love, friendship, and personal growth in a uniquely Korean cultural context.",
-      year: mockCategories.flatMap(c => c.shows).find(s => s.id.toString() === id.toString())?.year || 2023,
-      rating: `${mockCategories.flatMap(c => c.shows).find(s => s.id.toString() === id.toString())?.rating || 85}% Match`,
-      duration: mockCategories.flatMap(c => c.shows).find(s => s.id.toString() === id.toString())?.duration || "16 Episodes",
+      title: "Unknown Title",
+      description: "An amazing K-Drama that will captivate you with its compelling storyline, exceptional acting, and beautiful cinematography.",
+      year: 2023,
+      rating: "85% Match",
+      duration: "16 Episodes",
       genre: ["Drama", "Romance", "Comedy"],
-      cast: ["Actor 1", "Actor 2", "Actor 3", "Actor 4", "Actor 5"],
+      cast: ["Actor 1", "Actor 2", "Actor 3"],
       director: "Director Name",
       maturityRating: "13+",
       episodes: 16,
       seasons: 1
     }
-  }
+  }, [featuredContent, courses])
 
-  // Função para obter conteúdos similares
-  const getMoreLikeThis = (currentId: number | string) => {
-    const allShows = mockCategories.flatMap(category => category.shows)
-    return allShows.filter(show => show.id.toString() !== currentId.toString()).slice(0, 9)
-  }
+  const getMoreLikeThis = useCallback((currentId: number | string) => {
+    return categoryData
+      .flatMap(category => category.shows)
+      .filter(show => show.id.toString() !== currentId.toString())
+      .slice(0, 9)
+  }, [categoryData])
 
-  // Função para abrir o modal
-  const openModal = (contentId: number | string) => {
+  const openModal = useCallback((contentId: number | string) => {
     const content = getContentDetails(contentId)
     setSelectedContent(content)
     setIsModalOpen(true)
-  }
+  }, [getContentDetails])
 
-  // Função para fechar o modal
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false)
     setSelectedContent(null)
-  }
+  }, [])
 
   return (
-    <div style={{ 
-      backgroundColor: '#141414',
-      minHeight: '100vh',
-      color: 'white',
-      // Mobile optimization: disable text selection for better touch experience
-      userSelect: isMobile ? 'none' : 'auto',
-      WebkitUserSelect: isMobile ? 'none' : 'auto',
-      // Improve touch responsiveness
-      touchAction: 'manipulation'
-    }}>
-      {/* Mobile-First Netflix Header */}
-      <header style={{ 
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 10%, transparent)',
-        zIndex: 50,
-        transition: 'background-color 0.4s ease'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          padding: isMobile ? '0 4%' : '0 4% 0 4%',
-          height: isMobile ? '56px' : '68px'
-        }}>
-          {/* Mobile Logo + Hamburger */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-purple-900 text-white overflow-x-hidden">
+      {/* Background gradient overlay */}
+      <div className="fixed inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/30 pointer-events-none" />
+      
+      {/* Modern Header */}
+      <motion.header 
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+          scrollY > 50 
+            ? 'bg-black/95 backdrop-blur-xl border-b border-purple-500/20' 
+            : 'bg-gradient-to-b from-black/80 via-black/20 to-transparent'
+        }`}
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+      >
+        <div className={`flex items-center justify-between px-6 lg:px-12 transition-all duration-300 ${
+          isMobile ? 'h-16' : 'h-20'
+        }`}>
           {isMobile ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <button 
+              <div className="flex items-center gap-4">
+                <motion.button 
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  style={{ 
-                    background: 'none',
-                    border: 'none',
-                    color: 'white',
-                    fontSize: '24px',
-                    cursor: 'pointer',
-                    padding: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: '44px',
-                    minHeight: '44px'
-                  }}
+                  className="p-2 rounded-lg bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300"
+                  whileTap={{ scale: 0.95 }}
                 >
-                  {isMobileMenuOpen ? '✕' : '☰'}
-                </button>
-                <h1 style={{ 
-                  fontSize: '1.4rem', 
-                  fontWeight: 'bold',
-                  color: '#E50914',
-                  fontFamily: 'Netflix Sans, Arial, sans-serif',
-                  margin: 0
-                }}>
+                  <span className="text-2xl">{isMobileMenuOpen ? '✕' : '☰'}</span>
+                </motion.button>
+                <motion.h1 
+                  className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
                   DORAMAFLIX
-                </h1>
+                </motion.h1>
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <SearchComponent />
-                <div style={{ 
-                  width: '32px', 
-                  height: '32px', 
-                  backgroundColor: '#E50914',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
-                }}>
+              <div className="flex items-center gap-3">
+                <SearchComponentLazy />
+                <motion.div 
+                  className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center font-bold cursor-pointer shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                >
                   U
-                </div>
+                </motion.div>
               </div>
             </>
           ) : (
             <>
               {/* Desktop Header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-                <h1 style={{ 
-                  fontSize: '1.75rem', 
-                  fontWeight: 'bold',
-                  color: '#E50914',
-                  fontFamily: 'Netflix Sans, Arial, sans-serif'
-                }}>
+              <div className="flex items-center gap-8">
+                <motion.h1 
+                  className="text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent cursor-pointer"
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                >
                   DORAMAFLIX
-                </h1>
+                </motion.h1>
                 
                 {/* Navigation */}
-                <nav style={{ display: 'flex', gap: '20px' }}>
-                  <a href="/" style={{ 
-                    color: 'white', 
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    fontWeight: '400',
-                    transition: 'color 0.4s'
-                  }}>Home</a>
-                  <a href="/browse" style={{ 
-                    color: '#b3b3b3', 
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    transition: 'color 0.4s'
-                  }}>TV Shows</a>
-                  <a href="/browse" style={{ 
-                    color: '#b3b3b3', 
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    transition: 'color 0.4s'
-                  }}>Movies</a>
-                  <a href="/browse" style={{ 
-                    color: '#b3b3b3', 
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    transition: 'color 0.4s'
-                  }}>New & Popular</a>
-                  <a href="#" style={{ 
-                    color: '#b3b3b3', 
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    transition: 'color 0.4s'
-                  }}>My List</a>
+                <nav className="flex gap-8">
+                  {['Home', 'TV Shows', 'Movies', 'New & Popular', 'My List'].map((item, index) => (
+                    <motion.a 
+                      key={item}
+                      href={item === 'Home' ? '/' : '/browse'}
+                      className={`text-sm font-medium transition-all duration-300 hover:text-purple-400 relative group ${
+                        item === 'Home' ? 'text-white' : 'text-gray-400'
+                      }`}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 + index * 0.1 }}
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      {item}
+                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-400 to-pink-500 group-hover:w-full transition-all duration-300" />
+                    </motion.a>
+                  ))}
                 </nav>
               </div>
 
               {/* Right side */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div className="flex items-center gap-6">
                 {/* Search */}
-                <SearchComponent />
+                <SearchComponentLazy />
                 
                 {/* Notifications */}
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: '18px', cursor: 'pointer' }}>🔔</span>
-                </div>
+                <motion.div 
+                  className="relative cursor-pointer p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="text-xl">🔔</span>
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                </motion.div>
                 
                 {/* Profile */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <div style={{ 
-                    width: '32px', 
-                    height: '32px', 
-                    backgroundColor: '#E50914',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '14px',
-                    fontWeight: 'bold'
-                  }}>
+                <motion.div 
+                  className="flex items-center gap-2 cursor-pointer group"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center font-bold shadow-lg group-hover:shadow-purple-500/25 transition-all duration-300">
                     U
                   </div>
-                  <span style={{ fontSize: '12px' }}>▼</span>
-                </div>
+                  <motion.span 
+                    className="text-sm group-hover:rotate-180 transition-transform duration-300"
+                    initial={{ rotate: 0 }}
+                  >
+                    ▼
+                  </motion.span>
+                </motion.div>
               </div>
             </>
           )}
         </div>
         
         {/* Mobile Menu Overlay */}
-        {isMobile && isMobileMenuOpen && (
-          <div style={{
-            position: 'absolute',
-            top: '56px',
-            left: 0,
-            right: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.95)',
-            backdropFilter: 'blur(10px)',
-            padding: '20px 4%',
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)'
-          }}>
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <a href="/" style={{ 
-                color: 'white', 
-                textDecoration: 'none',
-                fontSize: '16px',
-                fontWeight: '500',
-                padding: '12px 0',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>Home</a>
-              <a href="/browse" style={{ 
-                color: '#b3b3b3', 
-                textDecoration: 'none',
-                fontSize: '16px',
-                fontWeight: '500',
-                padding: '12px 0',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>TV Shows</a>
-              <a href="/browse" style={{ 
-                color: '#b3b3b3', 
-                textDecoration: 'none',
-                fontSize: '16px',
-                fontWeight: '500',
-                padding: '12px 0',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>Movies</a>
-              <a href="/browse" style={{ 
-                color: '#b3b3b3', 
-                textDecoration: 'none',
-                fontSize: '16px',
-                fontWeight: '500',
-                padding: '12px 0',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>New & Popular</a>
-              <a href="#" style={{ 
-                color: '#b3b3b3', 
-                textDecoration: 'none',
-                fontSize: '16px',
-                fontWeight: '500',
-                padding: '12px 0'
-              }}>My List</a>
-            </nav>
-          </div>
-        )}
-      </header>
-
-      {/* Mobile-Optimized Hero Section */}
-      <section style={{
-        position: 'relative',
-        height: isMobile ? '80vh' : '100vh',
-        backgroundImage: 'linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'1920\' height=\'1080\' viewBox=\'0 0 1920 1080\'%3E%3Cdefs%3E%3ClinearGradient id=\'grad\' x1=\'0%25\' y1=\'0%25\' x2=\'100%25\' y2=\'100%25\'%3E%3Cstop offset=\'0%25\' style=\'stop-color:%23ff6b6b;stop-opacity:1\' /%3E%3Cstop offset=\'50%25\' style=\'stop-color:%234ecdc4;stop-opacity:1\' /%3E%3Cstop offset=\'100%25\' style=\'stop-color:%2345b7d1;stop-opacity:1\' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=\'100%25\' height=\'100%25\' fill=\'url(%23grad)\' /%3E%3C/svg%3E")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        display: 'flex',
-        alignItems: isMobile ? 'flex-end' : 'center',
-        paddingTop: isMobile ? '56px' : '68px',
-        paddingBottom: isMobile ? '40px' : '0'
-      }}>
-        <div style={{ 
-          padding: isMobile ? '0 4%' : '0 4%',
-          maxWidth: isMobile ? '100%' : '36%',
-          zIndex: 2,
-          width: isMobile ? '100%' : 'auto'
-        }}>
-          <h1 style={{
-            fontSize: isMobile ? 'clamp(1.8rem, 8vw, 2.5rem)' : 'clamp(2rem, 5vw, 3.5rem)',
-            fontWeight: '700',
-            marginBottom: isMobile ? '0.8rem' : '1rem',
-            lineHeight: '1.1',
-            color: 'white',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.45)',
-            textAlign: isMobile ? 'center' : 'left'
-          }}>
-            {featuredContent?.title || 'Loading...'}
-          </h1>
-          
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: isMobile ? '12px' : '16px',
-            marginBottom: isMobile ? '0.8rem' : '1rem',
-            color: 'white',
-            fontSize: isMobile ? '0.9rem' : '1.1rem',
-            justifyContent: isMobile ? 'center' : 'flex-start',
-            flexWrap: 'wrap'
-          }}>
-            <span style={{ 
-              color: '#46d369',
-              fontWeight: '700'
-            }}>
-              {featuredContent?.rating ? `${featuredContent.rating}★` : 'N/A'}
-            </span>
-            <span>{featuredContent?.year}</span>
-            <span>{featuredContent?.totalEpisodes ? `${featuredContent.totalEpisodes} Episodes` : ''}</span>
-          </div>
-
-          <p style={{
-            fontSize: isMobile ? '0.9rem' : 'clamp(0.9rem, 1.4vw, 1.4rem)',
-            lineHeight: '1.4',
-            marginBottom: isMobile ? '1.5rem' : '2rem',
-            maxWidth: isMobile ? '100%' : '90%',
-            color: 'white',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.45)',
-            textAlign: isMobile ? 'center' : 'left',
-            display: isMobile ? '-webkit-box' : 'block',
-            WebkitLineClamp: isMobile ? 3 : 'none',
-            WebkitBoxOrient: isMobile ? 'vertical' : 'initial',
-            overflow: isMobile ? 'hidden' : 'visible'
-          }}>
-            {featuredContent?.description || 'Loading content...'}
-          </p>
-
-          <div style={{
-            display: 'flex',
-            gap: isMobile ? '8px' : '12px',
-            alignItems: 'center',
-            justifyContent: isMobile ? 'center' : 'flex-start',
-            flexDirection: isMobile ? 'column' : 'row',
-            width: '100%'
-          }}>
-            <button style={{
-              backgroundColor: 'white',
-              color: 'black',
-              border: 'none',
-              padding: isMobile ? '16px 40px' : '12px 32px',
-              borderRadius: '6px',
-              fontSize: isMobile ? '1rem' : '1.1rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              transition: 'all 0.2s ease',
-              minHeight: isMobile ? '48px' : 'auto',
-              width: isMobile ? '280px' : 'auto',
-              touchAction: 'manipulation'
-            }}>
-              ▶️ Play
-            </button>
-            
-            <button 
-              onClick={() => openModal(0)}
-              style={{
-                backgroundColor: 'rgba(109, 109, 110, 0.7)',
-                color: 'white',
-                border: 'none',
-                padding: isMobile ? '16px 40px' : '12px 32px',
-                borderRadius: '6px',
-                fontSize: isMobile ? '1rem' : '1.1rem',
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease',
-                minHeight: isMobile ? '48px' : 'auto',
-                width: isMobile ? '280px' : 'auto',
-                touchAction: 'manipulation'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(109, 109, 110, 0.4)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(109, 109, 110, 0.7)'
-              }}
+        <AnimatePresence>
+          {isMobile && isMobileMenuOpen && (
+            <motion.div 
+              className="absolute top-16 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-purple-500/20 shadow-2xl"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
             >
-              ℹ️ More Info
-            </button>
-          </div>
+              <div className="p-6">
+                <nav className="flex flex-col gap-2">
+                  {['Home', 'TV Shows', 'Movies', 'New & Popular', 'My List'].map((item, index) => (
+                    <motion.a 
+                      key={item}
+                      href={item === 'Home' ? '/' : '/browse'}
+                      className={`text-lg font-medium py-4 px-4 rounded-xl transition-all duration-300 hover:bg-purple-500/20 hover:text-purple-400 border-b border-white/10 last:border-b-0 ${
+                        item === 'Home' ? 'text-white bg-purple-500/10' : 'text-gray-400'
+                      }`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      whileHover={{ x: 10 }}
+                    >
+                      {item}
+                    </motion.a>
+                  ))}
+                </nav>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.header>
+
+      {/* Hero Section */}
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/50 via-black/30 to-pink-900/50" />
+          <div className="absolute inset-0 opacity-30" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }} />
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-transparent to-pink-600/20"
+            animate={{
+              background: [
+                'linear-gradient(45deg, rgba(147, 51, 234, 0.2), transparent, rgba(236, 72, 153, 0.2))',
+                'linear-gradient(90deg, rgba(236, 72, 153, 0.2), transparent, rgba(147, 51, 234, 0.2))',
+                'linear-gradient(135deg, rgba(147, 51, 234, 0.2), transparent, rgba(236, 72, 153, 0.2))'
+              ]
+            }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+          />
         </div>
 
-        {/* Fade to black */}
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: isMobile ? '4rem' : '7.4rem',
-          background: 'linear-gradient(180deg, transparent, rgba(20,20,20,0.6), #141414)',
-          zIndex: 1
-        }} />
+        <div className={`relative z-10 ${isMobile ? 'px-6 text-center' : 'px-12 max-w-4xl'} w-full`}>
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="space-y-6"
+          >
+            <motion.h1 
+              className={`font-bold leading-tight bg-gradient-to-r from-white via-purple-100 to-pink-100 bg-clip-text text-transparent ${
+                isMobile ? 'text-4xl md:text-5xl text-center' : 'text-6xl lg:text-7xl text-left'
+              }`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+            >
+              {featuredContent?.title || 'Discover Amazing'}
+              <br />
+              <span className="bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                {featuredContent?.title ? 'Content' : 'Asian Dramas'}
+              </span>
+            </motion.h1>
+
+            <motion.div 
+              className={`flex items-center gap-4 text-lg font-medium ${
+                isMobile ? 'justify-center flex-wrap' : 'justify-start'
+              }`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+            >
+              <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-full border border-green-500/30">
+                <span className="text-green-400 font-bold">
+                  {featuredContent?.rating ? `${featuredContent.rating}★` : '9.2★'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 bg-purple-500/20 px-3 py-1 rounded-full border border-purple-500/30">
+                <span className="text-purple-300">
+                  {featuredContent?.year || '2024'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 bg-pink-500/20 px-3 py-1 rounded-full border border-pink-500/30">
+                <span className="text-pink-300">
+                  {featuredContent?.totalEpisodes ? `${featuredContent.totalEpisodes} Episodes` : '16 Episodes'}
+                </span>
+              </div>
+            </motion.div>
+
+            <motion.p 
+              className={`text-gray-300 leading-relaxed max-w-2xl ${
+                isMobile ? 'text-base text-center line-clamp-3' : 'text-lg text-left'
+              }`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+            >
+              {featuredContent?.description || 
+                'Immerse yourself in captivating stories, unforgettable characters, and stunning cinematography. Discover your next obsession with our curated collection of premium Asian dramas.'}
+            </motion.p>
+
+            <motion.div 
+              className={`flex gap-4 ${isMobile ? 'flex-col items-center w-full' : 'flex-row items-center'}`}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8, duration: 0.6 }}
+            >
+              <motion.button 
+                className={`bg-white text-black font-bold py-4 px-8 rounded-xl flex items-center gap-3 hover:bg-gray-100 transition-all duration-300 shadow-lg hover:shadow-xl group ${
+                  isMobile ? 'w-72' : 'w-auto'
+                }`}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1, duration: 0.6 }}
+              >
+                <div className="w-6 h-6 bg-black rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <span className="text-white text-sm">▶</span>
+                </div>
+                <span className="text-lg">Play Now</span>
+              </motion.button>
+
+              <motion.button 
+                onClick={() => openModal(0)}
+                className={`bg-white/20 backdrop-blur-sm text-white font-bold py-4 px-8 rounded-xl flex items-center gap-3 border border-white/30 hover:bg-white/30 hover:border-white/50 transition-all duration-300 group ${
+                  isMobile ? 'w-72' : 'w-auto'
+                }`}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1.2, duration: 0.6 }}
+              >
+                <div className="w-6 h-6 border-2 border-white rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <span className="text-white text-sm">i</span>
+                </div>
+                <span className="text-lg">More Info</span>
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        </div>
+
+        {/* Gradient overlay */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black via-black/50 to-transparent z-5" />
       </section>
 
-      {/* Mobile-Optimized Content Rows with Swiper */}
-      <main style={{ 
-        backgroundColor: '#141414',
-        position: 'relative',
-        zIndex: 5
-      }}>
-        {categoryData.map((category, index) => (
-          <section key={category.title} style={{ 
-            marginBottom: isMobile ? '2rem' : '3rem',
-            paddingLeft: isMobile ? '0' : '4%'
-          }}>
-            <h2 style={{
-              color: '#e5e5e5',
-              fontSize: isMobile ? '1.2rem' : '1.4rem',
-              fontWeight: '700',
-              marginBottom: '0.8rem',
-              paddingLeft: isMobile ? '4%' : '0'
-            }}>
-              {category.title}
-            </h2>
+      {/* Content Categories */}
+      <main className="relative z-10 pt-8">
+        {categoryData.map((category, categoryIndex) => (
+          <motion.section 
+            key={category.title} 
+            className="mb-12"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: categoryIndex * 0.2, duration: 0.6 }}
+          >
+            <div className="px-6 lg:px-12 mb-6">
+              <h2 className="text-2xl lg:text-3xl font-bold text-white mb-2">
+                {category.title}
+              </h2>
+              <div className="w-20 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" />
+            </div>
             
             {isMobile ? (
-              // Mobile: Swiper with touch gestures
-              <Swiper
-                modules={[FreeMode]}
-                spaceBetween={8}
-                slidesPerView={2.2}
-                freeMode={true}
-                grabCursor={true}
-                touchStartPreventDefault={false}
-                style={{
-                  paddingLeft: '4%',
-                  paddingRight: '4%',
-                  paddingBottom: '1rem'
-                }}
-                breakpoints={{
-                  480: {
-                    slidesPerView: 2.5,
-                    spaceBetween: 10
-                  },
-                  640: {
-                    slidesPerView: 3.2,
-                    spaceBetween: 12
-                  }
-                }}
-              >
-                {category.shows.map((show) => (
-                  <SwiperSlide key={show.id}>
-                    <div 
+              // Mobile: Swiper carousel
+              <LazyLoad>
+                <LazySwiper
+                  modules={[FreeMode]}
+                  spaceBetween={12}
+                  slidesPerView={2.2}
+                  freeMode={true}
+                  grabCursor={true}
+                  className="px-6"
+                  breakpoints={{
+                    480: {
+                      slidesPerView: 2.5,
+                      spaceBetween: 16
+                    },
+                    640: {
+                      slidesPerView: 3.2,
+                      spaceBetween: 20
+                    }
+                  }}
+                >
+                  {category.shows.map((show, index) => (
+                    <LazySwiperSlide key={show.id}>
+                      <motion.div 
+                        onClick={() => openModal(show.id)}
+                        className="relative group cursor-pointer"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <div className="aspect-[2/3] bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl overflow-hidden shadow-lg group-hover:shadow-2xl group-hover:shadow-purple-500/25 transition-all duration-300">
+                          <div className="w-full h-full bg-gray-800 flex items-center justify-center text-white font-bold">
+                            {show.title}
+                          </div>
+                        </div>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent p-3 rounded-b-xl">
+                          <h3 className="text-white font-semibold text-sm mb-1 line-clamp-1">
+                            {show.title}
+                          </h3>
+                          <div className="text-green-400 text-xs font-medium">
+                            {show.rating}% Match
+                          </div>
+                        </div>
+                      </motion.div>
+                    </LazySwiperSlide>
+                  ))}
+                </LazySwiper>
+              </LazyLoad>
+            ) : (
+              // Desktop: Grid layout
+              <div className="px-6 lg:px-12">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                  {category.shows.map((show, index) => (
+                    <motion.div 
+                      key={show.id}
                       onClick={() => openModal(show.id)}
-                      style={{
-                        width: '100%',
-                        height: '120px',
-                        backgroundColor: '#333',
-                        borderRadius: '6px',
-                        position: 'relative',
-                        cursor: 'pointer',
-                        transition: 'transform 0.2s ease',
-                        background: `linear-gradient(135deg, #${Math.floor(Math.random()*16777215).toString(16)}, #${Math.floor(Math.random()*16777215).toString(16)})`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexDirection: 'column',
-                        touchAction: 'manipulation'
-                      }}
-                      onTouchStart={(e) => {
-                        e.currentTarget.style.transform = 'scale(0.95)';
-                      }}
-                      onTouchEnd={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }}
+                      className="relative group cursor-pointer"
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      whileHover={{ scale: 1.05, y: -5 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <div style={{ 
-                        width: '100%', 
-                        height: '70%', 
-                        backgroundImage: `url(${show.image})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        borderTopLeftRadius: '6px',
-                        borderTopRightRadius: '6px'
-                      }}>
-                      </div>
-                      <div style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        background: 'linear-gradient(transparent, rgba(0,0,0,0.9))',
-                        padding: '0.8rem 0.5rem 0.4rem',
-                        borderBottomLeftRadius: '6px',
-                        borderBottomRightRadius: '6px'
-                      }}>
-                        <h3 style={{
-                          color: 'white',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          marginBottom: '0.2rem',
-                          lineHeight: '1.2',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}>
+                      <div className="aspect-[2/3] bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl overflow-hidden shadow-lg group-hover:shadow-2xl group-hover:shadow-purple-500/25 transition-all duration-300">
+                        <div className="w-full h-full bg-gray-800 flex items-center justify-center text-white font-bold p-4 text-center">
                           {show.title}
-                        </h3>
-                        <div style={{
-                          color: '#46d369',
-                          fontSize: '0.7rem',
-                          fontWeight: '600'
-                        }}>
-                          {show.rating}% Match
                         </div>
                       </div>
-                    </div>
-                  </SwiperSlide>
-                ))}
-              </Swiper>
-            ) : (
-              // Desktop: Original scrollable design
-              <div style={{
-                display: 'flex',
-                gap: '0.5rem',
-                overflowX: 'auto',
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                paddingBottom: '1rem'
-              }}>
-                {category.shows.map((show) => (
-                  <div 
-                    key={show.id}
-                    onClick={() => openModal(show.id)}
-                    style={{
-                      minWidth: '250px',
-                      height: '141px',
-                      backgroundColor: '#333',
-                      borderRadius: '4px',
-                      position: 'relative',
-                      cursor: 'pointer',
-                      transition: 'transform 0.3s ease',
-                      background: `linear-gradient(135deg, #${Math.floor(Math.random()*16777215).toString(16)}, #${Math.floor(Math.random()*16777215).toString(16)})`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexDirection: 'column'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'scale(1.05)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
-                    }}
-                  >
-                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>
-                      {show.image}
-                    </div>
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
-                      padding: '1rem 0.75rem 0.5rem',
-                      borderBottomLeftRadius: '4px',
-                      borderBottomRightRadius: '4px'
-                    }}>
-                      <h3 style={{
-                        color: 'white',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        marginBottom: '0.25rem',
-                        lineHeight: '1.2'
-                      }}>
-                        {show.title}
-                      </h3>
-                      <div style={{
-                        color: '#46d369',
-                        fontSize: '0.8rem',
-                        fontWeight: '600'
-                      }}>
-                        {show.rating}% Match
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent p-4 rounded-b-xl opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <h3 className="text-white font-semibold text-sm mb-2 line-clamp-2">
+                          {show.title}
+                        </h3>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-green-400 font-medium">
+                            {show.rating}% Match
+                          </span>
+                          <span className="text-gray-300">
+                            {show.year}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             )}
-          </section>
+          </motion.section>
         ))}
 
-        {/* System Status - Minimal */}
-        <section style={{ 
-          padding: '2rem 4%',
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          margin: '3rem 0'
-        }}>
-          <h2 style={{
-            color: '#e5e5e5',
-            fontSize: '1.4rem',
-            fontWeight: '700',
-            marginBottom: '1rem'
-          }}>
+        {/* System Status */}
+        <motion.section 
+          className="mx-6 lg:mx-12 my-16 p-8 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.6 }}
+        >
+          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+            <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
             System Status
           </h2>
-          <div style={{
-            display: 'flex',
-            gap: '2rem',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
-              API: <span style={{ color: apiStatus.includes('✅') ? '#46d369' : '#f40612' }}>{apiStatus}</span>
-            </div>
-            <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
-              Frontend: <span style={{ color: '#46d369' }}>Running ✅</span>
-            </div>
-            <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
-              Database: <span style={{ color: '#46d369' }}>Connected ✅</span>
-            </div>
-            <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
-              Upload: <span style={{ color: '#46d369' }}>Ready ✅</span>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              { label: 'API', status: apiStatus, color: apiStatus.includes('✅') ? 'text-green-400' : 'text-red-400' },
+              { label: 'Frontend', status: 'Running ✅', color: 'text-green-400' },
+              { label: 'Database', status: 'Connected ✅', color: 'text-green-400' },
+              { label: 'Upload', status: 'Ready ✅', color: 'text-green-400' }
+            ].map((item, index) => (
+              <motion.div 
+                key={item.label}
+                className="text-center p-4 bg-white/5 rounded-xl border border-white/10"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1 + index * 0.1 }}
+              >
+                <div className="text-gray-400 text-sm mb-2">{item.label}</div>
+                <div className={`font-medium ${item.color}`}>{item.status}</div>
+              </motion.div>
+            ))}
           </div>
-        </section>
+        </motion.section>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      {isMobile && (
-        <div style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.95)',
-          backdropFilter: 'blur(10px)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-          zIndex: 40,
-          padding: '8px 0',
-          paddingBottom: 'calc(8px + env(safe-area-inset-bottom))'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-around',
-            alignItems: 'center'
-          }}>
-            <button style={{
-              background: 'none',
-              border: 'none',
-              color: 'white',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '8px 16px',
-              fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              minHeight: '48px',
-              touchAction: 'manipulation'
-            }}>
-              <span style={{ fontSize: '20px' }}>🏠</span>
-              Home
-            </button>
-            
-            <button style={{
-              background: 'none',
-              border: 'none',
-              color: '#b3b3b3',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '8px 16px',
-              fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              minHeight: '48px',
-              touchAction: 'manipulation'
-            }}>
-              <span style={{ fontSize: '20px' }}>🔍</span>
-              Search
-            </button>
-            
-            <button style={{
-              background: 'none',
-              border: 'none',
-              color: '#b3b3b3',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '8px 16px',
-              fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              minHeight: '48px',
-              touchAction: 'manipulation'
-            }}>
-              <span style={{ fontSize: '20px' }}>📱</span>
-              Downloads
-            </button>
-            
-            <button style={{
-              background: 'none',
-              border: 'none',
-              color: '#b3b3b3',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '8px 16px',
-              fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              minHeight: '48px',
-              touchAction: 'manipulation'
-            }}>
-              <span style={{ fontSize: '20px' }}>👤</span>
-              Profile
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Footer */}
-      <footer style={{ 
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        backdropFilter: 'blur(8px)',
-        borderTop: '1px solid rgba(147, 51, 234, 0.3)',
-        marginTop: '4rem',
-        paddingBottom: isMobile ? '80px' : '0'
-      }}>
-        <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '2rem 1rem' }}>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ color: '#9ca3af' }}>
-              &copy; 2024 DoramaFlix. Built with Next.js, TypeScript, and Vercel Blob.
+      <footer className="relative mt-20 bg-black/50 backdrop-blur-sm border-t border-purple-500/20">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12">
+          <div className="text-center">
+            <motion.h2 
+              className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent mb-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.5 }}
+            >
+              DORAMAFLIX
+            </motion.h2>
+            <p className="text-gray-400 mb-2">
+              © 2024 DoramaFlix. Built with Next.js, TypeScript, and modern web technologies.
             </p>
-            <p style={{ color: '#6b7280', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-              Frontend running on localhost:3003 | Backend API on localhost:3002
+            <p className="text-gray-500 text-sm">
+              Frontend running on localhost:3001 | Backend API on localhost:3002
             </p>
           </div>
         </div>
+        {isMobile && <div className="h-20" />}
       </footer>
 
       {/* Modal */}
       {isModalOpen && selectedContent && (
-        <ContentModal
+        <ContentModalLazy
           isOpen={isModalOpen}
           onClose={closeModal}
           content={selectedContent}

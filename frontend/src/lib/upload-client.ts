@@ -1,6 +1,6 @@
 /**
  * Upload Client
- * Frontend client for file uploads to Vercel Blob
+ * Frontend client for file uploads to DigitalOcean Spaces via backend API
  */
 
 import { apiClient } from './api-client';
