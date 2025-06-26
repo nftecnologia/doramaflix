@@ -45,7 +45,7 @@ const envSchema = z.object({
   BCRYPT_SALT_ROUNDS: z.string().transform(Number).pipe(z.number().min(10).max(15)).default('12'),
 
   // File Storage
-  STORAGE_PROVIDER: z.enum(['vercel-blob', 'cloudflare-r2', 'aws-s3']).default('vercel-blob'),
+  STORAGE_PROVIDER: z.enum(['vercel-blob', 'cloudflare-r2', 'aws-s3', 'digitalocean-spaces']).default('vercel-blob'),
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
   CLOUDFLARE_R2_ENDPOINT: z.string().url().optional(),
   CLOUDFLARE_R2_ACCESS_KEY: z.string().optional(),
@@ -56,6 +56,12 @@ const envSchema = z.object({
   AWS_S3_ACCESS_KEY: z.string().optional(),
   AWS_S3_SECRET_KEY: z.string().optional(),
   AWS_S3_BUCKET: z.string().optional(),
+  DO_SPACES_ENDPOINT: z.string().optional(),
+  DO_SPACES_REGION: z.string().optional(),
+  DO_SPACES_BUCKET: z.string().optional(),
+  DO_SPACES_ACCESS_KEY: z.string().optional(),
+  DO_SPACES_SECRET_KEY: z.string().optional(),
+  DO_SPACES_CDN_URL: z.string().optional(),
 
   // Payment Gateways
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
@@ -154,6 +160,14 @@ export const config = {
       accessKey: env.AWS_S3_ACCESS_KEY,
       secretKey: env.AWS_S3_SECRET_KEY,
       bucket: env.AWS_S3_BUCKET,
+    },
+    digitalOcean: {
+      endpoint: env.DO_SPACES_ENDPOINT || 'nyc3.digitaloceanspaces.com',
+      region: env.DO_SPACES_REGION || 'nyc3',
+      bucket: env.DO_SPACES_BUCKET || 'doramaflix-storage',
+      accessKey: env.DO_SPACES_ACCESS_KEY || '',
+      secretKey: env.DO_SPACES_SECRET_KEY || '',
+      cdnUrl: env.DO_SPACES_CDN_URL || '',
     },
   },
 

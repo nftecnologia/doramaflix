@@ -3,6 +3,9 @@
  * Centralizes all type exports for easy importing
  */
 
+import { Request } from 'express';
+import { UserRole } from '@prisma/client';
+
 // API Types
 export * from './api.types';
 
@@ -62,15 +65,16 @@ export interface ApiRequest<T = any> extends Request {
   user?: {
     id: string;
     email: string;
-    role: string;
+    role: UserRole;
   };
 }
 
-export interface AuthenticatedRequest<T = any> extends ApiRequest<T> {
+export interface AuthenticatedRequest<T = any> extends Request {
+  body: T;
   user: {
     id: string;
     email: string;
-    role: string;
+    role: UserRole;
   };
 }
 

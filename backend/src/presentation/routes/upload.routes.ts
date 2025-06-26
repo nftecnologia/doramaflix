@@ -7,16 +7,9 @@ import { Router } from 'express';
 import multer from 'multer';
 import { createUploadController } from '@/application/controllers/upload.controller';
 import { UploadService } from '@/application/services/upload.service';
-import { createAuthMiddleware } from '@/application/middlewares/auth.middleware';
-import { AuthService } from '@/application/services/auth.service';
-import { UserRepositoryImpl } from '@/infrastructure/repositories/user.repository.impl';
+import { authMiddleware } from '@/application/middlewares/auth.middleware';
 import { uploadRateLimiter } from '@/application/middlewares/rate-limiter';
 import { config } from '@/shared/config/environment';
-
-// Create dependencies
-const userRepository = new UserRepositoryImpl();
-const authService = new AuthService(userRepository);
-const authMiddleware = createAuthMiddleware(authService, userRepository);
 const uploadService = new UploadService();
 const uploadController = createUploadController(uploadService);
 
@@ -100,41 +93,41 @@ const router = Router();
 router.use(uploadRateLimiter);
 
 // Apply authentication to all upload routes
-router.use(authMiddleware.authenticated);
+router.use(authMiddleware);
 
 // Video upload routes
 router.post(
   '/video',
-  authMiddleware.adminOrManager, // Only admins and managers can upload videos
+  authMiddleware, // Authentication required
   uploadVideo.single('file'),
-  ...uploadController.uploadVideo
+  uploadController.uploadVideo
 );
 
 // Image upload routes
 router.post(
   '/image',
   uploadImage.single('file'),
-  ...uploadController.uploadImage
+  uploadController.uploadImage
 );
 
 // Subtitle upload routes
 router.post(
   '/subtitle',
-  authMiddleware.adminOrManager, // Only admins and managers can upload subtitles
+  authMiddleware,
   uploadSubtitle.single('file'),
-  ...uploadController.uploadSubtitle
+  uploadController.uploadSubtitle
 );
 
 // File management routes
 router.delete(
   '/file',
-  authMiddleware.adminOrManager, // Only admins and managers can delete files
+  authMiddleware,
   uploadController.deleteFile
 );
 
 router.post(
   '/bulk-delete',
-  authMiddleware.adminOnly, // Only admins can bulk delete
+  authMiddleware,
   uploadController.bulkDeleteFiles
 );
 
@@ -146,7 +139,7 @@ router.get(
 
 router.get(
   '/stats',
-  authMiddleware.adminOrManager, // Only admins and managers can view stats
+  authMiddleware,
   uploadController.getStorageStats
 );
 

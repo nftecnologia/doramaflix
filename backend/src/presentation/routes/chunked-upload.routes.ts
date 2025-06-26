@@ -7,7 +7,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware } from '@/application/middlewares/auth.middleware';
 import { validateRequest } from '@/application/middlewares/validation.middleware';
-import { rateLimiter } from '@/application/middlewares/rate-limiter';
+import { rateLimiter, uploadRateLimiter } from '@/application/middlewares/rate-limiter';
 import { createChunkedUploadController } from '@/application/controllers/chunked-upload.controller';
 import { ChunkedUploadService } from '@/application/services/chunked-upload.service';
 import { chunkedUploadValidationSchemas, validateVideoFile } from '@/presentation/validators/chunked-upload.validators';
@@ -40,21 +40,9 @@ const router = Router();
 router.use(authMiddleware);
 
 // Apply rate limiting
-const uploadRateLimit = rateLimiter.createRateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each user to 100 requests per windowMs
-  message: 'Too many upload requests, please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const uploadRateLimit = uploadRateLimiter;
 
-const chunkRateLimit = rateLimiter.createRateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 1000, // High limit for chunk uploads
-  message: 'Too many chunk upload requests, please slow down',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const chunkRateLimit = uploadRateLimiter;
 
 // Routes
 

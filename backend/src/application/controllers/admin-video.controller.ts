@@ -12,8 +12,10 @@ import { asyncHandler, ValidationAppError } from '@/application/middlewares/erro
 import { validateRequest } from '@/application/middlewares/validation.middleware';
 import { logger } from '@/shared/utils/logger';
 
+import { UserRole } from '@prisma/client';
+
 export interface AdminRequest extends Request {
-  user?: { id: string; role: string };
+  user?: { id: string; email: string; role: UserRole };
 }
 
 export interface BatchUploadRequest {
@@ -444,14 +446,14 @@ export class AdminVideoController {
   private async storeBatchInfo(batchId: string, batchInfo: any): Promise<void> {
     // In a real implementation, you'd store this in a database
     // For now, we'll use Redis with a longer TTL
-    const redis = new (await import('@/infrastructure/cache/redis-connection')).RedisConnection();
-    await redis.setex(`batch_info:${batchId}`, 7 * 24 * 60 * 60, JSON.stringify(batchInfo)); // 7 days
+    const { RedisConnection } = await import('@/infrastructure/cache/redis-connection');
+    await RedisConnection.set(`batch_info:${batchId}`, batchInfo, 7 * 24 * 60 * 60); // 7 days
   }
 
   private async getBatchInfo(batchId: string): Promise<any> {
-    const redis = new (await import('@/infrastructure/cache/redis-connection')).RedisConnection();
-    const batchData = await redis.get(`batch_info:${batchId}`);
-    return batchData ? JSON.parse(batchData) : null;
+    const { RedisConnection } = await import('@/infrastructure/cache/redis-connection');
+    const batchData = await RedisConnection.get(`batch_info:${batchId}`);
+    return batchData || null;
   }
 
   private async processContentModerationAction(action: ContentModerationAction, moderatorId: string): Promise<void> {

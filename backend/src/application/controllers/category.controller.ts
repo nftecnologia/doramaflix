@@ -24,7 +24,7 @@ export class CategoryController {
   // =============================================
 
   // GET /api/v1/categories
-  getAllCategories = async (req: Request, res: Response, next: NextFunction) => {
+  getAllCategories = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const result = await this.categoryService.getAllCategories(req.query);
 
@@ -39,7 +39,7 @@ export class CategoryController {
   };
 
   // GET /api/v1/categories/:id
-  getCategory = async (req: Request, res: Response, next: NextFunction) => {
+  getCategory = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
 
@@ -66,7 +66,7 @@ export class CategoryController {
   };
 
   // GET /api/v1/categories/slug/:slug
-  getCategoryBySlug = async (req: Request, res: Response, next: NextFunction) => {
+  getCategoryBySlug = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { slug } = req.params;
 
@@ -95,7 +95,7 @@ export class CategoryController {
   // =============================================
 
   // POST /api/v1/categories
-  createCategory = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  createCategory = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const userId = req.user?.id;
 
@@ -130,7 +130,7 @@ export class CategoryController {
   };
 
   // PUT /api/v1/categories/:id
-  updateCategory = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  updateCategory = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const userId = req.user?.id;
@@ -176,7 +176,7 @@ export class CategoryController {
   };
 
   // DELETE /api/v1/categories/:id
-  deleteCategory = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  deleteCategory = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const userId = req.user?.id;
@@ -208,7 +208,7 @@ export class CategoryController {
   };
 
   // PATCH /api/v1/categories/:id/toggle-status
-  toggleCategoryStatus = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  toggleCategoryStatus = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const userId = req.user?.id;
@@ -244,7 +244,7 @@ export class CategoryController {
   // =============================================
 
   // GET /api/v1/categories/tags
-  getAllTags = async (req: Request, res: Response, next: NextFunction) => {
+  getAllTags = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const result = await this.categoryService.getAllTags(req.query);
 
@@ -259,7 +259,7 @@ export class CategoryController {
   };
 
   // GET /api/v1/categories/tags/:id
-  getTag = async (req: Request, res: Response, next: NextFunction) => {
+  getTag = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
 
@@ -286,7 +286,7 @@ export class CategoryController {
   };
 
   // POST /api/v1/categories/tags
-  createTag = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  createTag = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const userId = req.user?.id;
 
@@ -325,7 +325,7 @@ export class CategoryController {
   };
 
   // DELETE /api/v1/categories/tags/:id
-  deleteTag = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  deleteTag = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { id } = req.params;
       const userId = req.user?.id;
@@ -357,7 +357,7 @@ export class CategoryController {
   };
 
   // GET /api/v1/categories/tags/popular
-  getPopularTags = async (req: Request, res: Response, next: NextFunction) => {
+  getPopularTags = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const { limit } = req.query;
       const tagLimit = limit ? parseInt(limit as string) : 20;

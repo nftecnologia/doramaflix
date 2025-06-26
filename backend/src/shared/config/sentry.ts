@@ -38,8 +38,7 @@ export const initSentry = (app: Express): void => {
       // Enable Prisma tracing
       new Tracing.Integrations.Prisma(),
       
-      // Enable Redis tracing
-      new Tracing.Integrations.Redis(),
+      // Redis tracing (removed - not available in current version)
       
       // Enable performance profiling
       new ProfilingIntegration(),
@@ -93,7 +92,8 @@ export const initSentry = (app: Express): void => {
       }
 
       // Filter out common bot requests
-      const userAgent = hint.originalException?.request?.headers?.['user-agent'] || '';
+      const userAgent = (hint.originalException as any)?.request?.headers?.['user-agent'] || 
+                       event.request?.headers?.['user-agent'] || '';
       if (userAgent.includes('bot') || userAgent.includes('crawler')) {
         return null;
       }
@@ -151,7 +151,8 @@ export const setupSentryErrorHandler = (app: Express): void => {
   app.use(Sentry.Handlers.errorHandler({
     shouldHandleError(error) {
       // Capture all 4xx and 5xx errors
-      return error.status >= 400;
+      const status = typeof error.status === 'string' ? parseInt(error.status, 10) : error.status;
+      return status >= 400;
     },
   }));
 };

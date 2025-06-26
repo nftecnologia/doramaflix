@@ -35,13 +35,7 @@ const router = Router();
 router.use(authMiddleware);
 
 // Admin-specific rate limiting (more permissive)
-const adminRateLimit = rateLimiter.createRateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Higher limit for admin operations
-  message: 'Too many admin requests, please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const adminRateLimit = rateLimiter;
 
 router.use(adminRateLimit);
 

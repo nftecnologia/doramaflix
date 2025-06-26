@@ -26,7 +26,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   // POST /api/v1/auth/register
-  register = async (req: Request, res: Response, next: NextFunction) => {
+  register = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // Validate request body
       const validationResult = registerSchema.safeParse(req.body);
@@ -41,7 +41,7 @@ export class AuthController {
       }
 
       const data: RegisterRequest = validationResult.data;
-      const ip = req.ip;
+      const ip = req.ip || 'unknown';
 
       const result = await this.authService.register(data, ip);
 
@@ -56,7 +56,7 @@ export class AuthController {
   };
 
   // POST /api/v1/auth/login
-  login = async (req: Request, res: Response, next: NextFunction) => {
+  login = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // Validate request body
       const validationResult = loginSchema.safeParse(req.body);
@@ -71,7 +71,7 @@ export class AuthController {
       }
 
       const credentials: LoginRequest = validationResult.data;
-      const ip = req.ip;
+      const ip = req.ip || 'unknown';
 
       const result = await this.authService.login(credentials, ip);
 
@@ -86,7 +86,7 @@ export class AuthController {
   };
 
   // POST /api/v1/auth/refresh
-  refreshToken = async (req: Request, res: Response, next: NextFunction) => {
+  refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // Validate request body
       const validationResult = refreshTokenSchema.safeParse(req.body);
@@ -115,7 +115,7 @@ export class AuthController {
   };
 
   // POST /api/v1/auth/logout
-  logout = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  logout = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const userId = req.user?.id;
       const refreshToken = req.body?.refreshToken;
@@ -137,7 +137,7 @@ export class AuthController {
   };
 
   // GET /api/v1/auth/me
-  getProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const user = req.user;
 
@@ -152,7 +152,7 @@ export class AuthController {
   };
 
   // POST /api/v1/auth/change-password
-  changePassword = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  changePassword = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const userId = req.user?.id;
 
@@ -187,7 +187,7 @@ export class AuthController {
   };
 
   // POST /api/v1/auth/forgot-password
-  forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // Validate request body
       const validationResult = forgotPasswordSchema.safeParse(req.body);
@@ -217,7 +217,7 @@ export class AuthController {
   };
 
   // GET /api/v1/auth/verify-token
-  verifyToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  verifyToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const user = req.user;
 

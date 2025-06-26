@@ -8,9 +8,10 @@ import { ChunkedUploadService } from '@/application/services/chunked-upload.serv
 import { asyncHandler, ValidationAppError } from '@/application/middlewares/error-handler';
 import { validateRequest } from '@/application/middlewares/validation.middleware';
 import { chunkedUploadValidationSchemas } from '@/presentation/validators/chunked-upload.validators';
+import { UserRole } from '@prisma/client';
 
 export interface ChunkedUploadRequest extends Request {
-  user?: { id: string };
+  user?: { id: string; email: string; role: UserRole };
 }
 
 export class ChunkedUploadController {
