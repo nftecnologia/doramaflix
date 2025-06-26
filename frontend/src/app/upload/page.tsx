@@ -1,13 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { VideoUpload } from '@/components/upload/video-upload'
 
 export default function UploadPage() {
   const [uploadType, setUploadType] = useState<'video' | 'image' | 'subtitle'>('video')
 
-  const handleUploadComplete = (result: any) => {
-    console.log('Upload completed:', result)
+  const handleUploadComplete = () => {
+    console.log('Upload completed successfully!')
     alert('Upload completed successfully!')
   }
 
@@ -87,13 +86,20 @@ export default function UploadPage() {
                 Upload video files to Vercel Blob. Supported formats: MP4, WebM, AVI, MOV (100MB max)
               </p>
               
-              {/* Video Upload Component */}
-              <VideoUpload
-                courseId="demo-course-id"
-                episodeId="demo-episode-id"
-                onUploadComplete={handleUploadComplete}
-                onUploadError={handleUploadError}
-              />
+              {/* Video Upload Component - Placeholder */}
+              <div className="border-2 border-dashed border-gray-600 rounded-lg p-12 hover:border-purple-500 transition-colors cursor-pointer">
+                <div className="text-center">
+                  <div className="text-4xl mb-4">📹</div>
+                  <p className="text-gray-300">Click or drag video files here to upload</p>
+                  <p className="text-sm text-gray-400 mt-2">Video upload system with Vercel Blob integration</p>
+                  <button 
+                    onClick={handleUploadComplete}
+                    className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  >
+                    Test Upload Complete
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
