@@ -102,21 +102,21 @@ doctl auth init
 cat .do/app.yaml # Copiar conteúdo para DigitalOcean Console
 ```
 
-### **4. Configurar Environment Variables**
+### **4. Environment Variables - CONFIGURADAS ✅**
 ```bash
-# Usar template em .do/env.example
-# Configurar no DigitalOcean App Platform:
+# ✅ PostgreSQL DigitalOcean Managed Database
+DATABASE_URL=postgresql://doadmin:YOUR_DB_PASSWORD@db-postgresql-videoflix-do-user-23465503-0.i.db.ondigitalocean.com:25060/defaultdb?sslmode=require
 
-# DigitalOcean Spaces
+# ✅ Upstash Redis 
+REDIS_URL=rediss://default:YOUR_REDIS_TOKEN@smashing-amoeba-24775.upstash.io:6379
+
+# 🔧 DigitalOcean Spaces (ainda precisa configurar)
 DO_SPACES_ENDPOINT=nyc3.digitaloceanspaces.com
 DO_SPACES_BUCKET=doramaflix-storage
-DO_SPACES_ACCESS_KEY=xxxxx
-DO_SPACES_SECRET_KEY=xxxxx
-DO_SPACES_CDN_URL=https://doramaflix.nyc3.cdn.digitaloceanspaces.com
+DO_SPACES_ACCESS_KEY=[Criar access key no console]
+DO_SPACES_SECRET_KEY=[Criar secret key no console]
 
-# Databases (auto-geradas pela DigitalOcean)
-DATABASE_URL=${db.DATABASE_URL}
-REDIS_URL=${redis.DATABASE_URL}
+# ✅ Configurações no .do/production.env (com credenciais reais)
 ```
 
 ### **5. Migrar Dados (Opcional)**

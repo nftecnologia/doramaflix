@@ -17,12 +17,9 @@ envs:
   - key: TZ
     value: America/New_York
 
-# Database configuration
-databases:
-  - name: doramaflix-db
-    engine: PG
-    version: "15"
-    production: true
+# Note: Using external managed databases
+# PostgreSQL: DigitalOcean Managed Database (already created)
+# Redis: Upstash Redis (already configured)
     
 # Services configuration
 services:
@@ -30,7 +27,7 @@ services:
   - name: frontend
     source_dir: /frontend
     github:
-      repo: your-username/doramaflix
+      repo: nftecnologia/doramaflix
       branch: main
       deploy_on_push: true
     build_command: |
@@ -111,7 +108,7 @@ services:
   - name: backend
     source_dir: /backend
     github:
-      repo: your-username/doramaflix
+      repo: nftecnologia/doramaflix
       branch: main
       deploy_on_push: true
     build_command: |
@@ -140,23 +137,31 @@ services:
       success_threshold: 1
       failure_threshold: 3
     envs:
-      # Database configuration
+      # Database configuration - DigitalOcean Managed PostgreSQL
       - key: DATABASE_URL
-        value: ${doramaflix-db.DATABASE_URL}
+        type: SECRET
+        value: postgresql://doadmin:YOUR_DB_PASSWORD@db-postgresql-videoflix-do-user-23465503-0.i.db.ondigitalocean.com:25060/defaultdb?sslmode=require
       - key: DB_HOST
-        value: ${doramaflix-db.HOSTNAME}
+        value: db-postgresql-videoflix-do-user-23465503-0.i.db.ondigitalocean.com
       - key: DB_PORT
-        value: ${doramaflix-db.PORT}
+        value: "25060"
       - key: DB_NAME
-        value: ${doramaflix-db.DATABASE}
+        value: defaultdb
       - key: DB_USER
-        value: ${doramaflix-db.USERNAME}
+        value: doadmin
       - key: DB_PASSWORD
-        value: ${doramaflix-db.PASSWORD}
-      # Redis configuration (if using external Redis)
+        type: SECRET
+        value: YOUR_DB_PASSWORD_HERE
+      # Redis configuration - Upstash Redis
       - key: REDIS_URL
         type: SECRET
-        value: your-redis-connection-string
+        value: rediss://default:YOUR_REDIS_TOKEN@smashing-amoeba-24775.upstash.io:6379
+      - key: UPSTASH_REDIS_REST_URL
+        type: SECRET
+        value: https://smashing-amoeba-24775.upstash.io
+      - key: UPSTASH_REDIS_REST_TOKEN
+        type: SECRET
+        value: YOUR_UPSTASH_REDIS_TOKEN
       # JWT configuration
       - key: JWT_SECRET
         type: SECRET
@@ -299,7 +304,7 @@ workers:
   - name: video-processor
     source_dir: /backend
     github:
-      repo: your-username/doramaflix
+      repo: nftecnologia/doramaflix
       branch: main
       deploy_on_push: true
     build_command: |
