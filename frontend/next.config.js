@@ -9,23 +9,9 @@ const nextConfig = {
     webVitalsAttribution: ['CLS', 'LCP'],
   },
   
-  // Image optimizations for Vercel
+  // Image optimizations for static export
   images: {
-    domains: [
-      'localhost',
-      'doramaflix.vercel.app',
-      'doramaflix-backend.railway.app',
-      'images.unsplash.com',
-      'via.placeholder.com',
-      'vercel.app',
-      'railway.app',
-    ],
-    formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 86400, // 24 hours
-    dangerouslyAllowSVG: false,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    unoptimized: true
   },
   
   // Environment variables
@@ -95,11 +81,12 @@ const nextConfig = {
   
   // Build optimizations
   swcMinify: true,
+  output: 'export',
+  trailingSlash: true,
   poweredByHeader: false,
   reactStrictMode: true,
   compress: true,
   generateEtags: false,
-  trailingSlash: false,
   
   // Advanced performance optimizations
   optimizeFonts: true,
